@@ -1,0 +1,633 @@
+@import url('https://fonts.googleapis.com/css2?family=Berkshire+Swash&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+@import url('https://fonts.googleapis.com/css2?family=Abril+Fatface&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+ 
+
+@layer components {
+
+  .demotextFont{
+    @apply text-5xl font-semibold leading-normal;
+  }
+
+  .demotextFontSM{
+    @apply text-3xl font-semibold leading-tight	;
+  }
+
+
+
+
+  .txt-gradient {
+    @apply bg-clip-text bg-gradient-to-r from-[#000] to-[#000] text-transparent ;
+  }
+
+  .txt-gradient2 {
+    @apply bg-clip-text bg-gradient-to-r  from-[#8500FF] from-10% via-[#2B5EE9] via-20% to-blue-900 to-60%  text-transparent ;
+  }
+
+  .txt-white {
+    @apply  text-sky-200;
+  }
+
+  .bg-gradiant {
+    @apply bg-gradient-to-r from-blue-900/[.80] via-violet-900/[.90] to-emerald-900/[.50];
+  }
+
+  .backgroundPosition{ 
+    @apply bg-center ;
+  }
+
+.card{
+  @apply  text-xl  bg-violet-950 rounded-[10px];
+}
+
+.gradiantBG{
+  @apply  bg-gradient-to-t from-violet-500/[0] via-violet-900/[.90] to-violet-900/[0] ; 
+}
+ 
+.gradiantBG2{
+  @apply  bg-gradient-to-r from-violet-950/[.20] via-violet-950/[0.10] to-violet-950/[.0] ; 
+}
+
+.nav-bg-trns{
+  @apply bg-transparent bg-gradient-to-t from-[#00046A] via-violet-900/[.50] to-violet-900/[.20] ; 
+
+}
+
+.we-offer{
+  @apply ring-4 ring-black rounded-[20px];
+}
+
+.line-gradint{
+  @apply border-b-[1px] border-gradient;
+}
+
+ 
+}
+
+
+
+
+@layer utilities{
+
+
+  .bgMainMenu{ position: fixed ;
+     height: 100vh; 
+     background-color: #fff; z-index: 999; 
+     width: 100vw; top: 0;
+      left: 0; 
+      overflow: hidden;
+       overflow-y: hidden;
+      }
+
+
+
+  .border-gradient {
+    border-image-slice:1;
+    border-width: 1px; 
+    border-style: solid;
+    border-radius: 50em;
+    border-top: 0px;
+    border-left: 0px;
+    border-right: 0px;
+    border-image-source: linear-gradient(to left, #000000, #7A24CE, #000000);
+     }
+  .border-gradient-purple {   
+    border-image-source: linear-gradient(to top, #305AE7, #0500FF, #7A24CE );
+    border-radius: 50em;
+  }
+  .border-gradient-green {
+    border-image-source: linear-gradient(to left, #00C853, #B2FF59);
+  }
+
+ 
+  .border-gradient-2 {
+    background: linear-gradient(#000, #000) padding-box,
+                linear-gradient(to right, darkblue, darkorchid) border-box;
+    border-radius:5px;
+    border: 1px solid transparent;
+  }
+  
+  .border-gradient-3 {   
+    box-sizing: border-box;
+    background: rgba(20,23,45,0.05);
+    border-radius:10px;
+    border-image-slice:2;  
+    border-image-width:2px; 
+    border-image-source:url('/nav-border.png');
+ 
+  }
+
+  /* .line-gradint {
+    box-sizing: content-box;
+    background: rgba(0,0,0,0.01);  
+    border-image-slice:1;  
+    border-style: solid;
+    border-image-width:1px;
+    border-image-source: bg-gradient-to-bl(to top, #305AE7, #0500FF, #7A24CE );
+    border-image-repeat:no-repeat;
+
+  } */
+  .blk-bg-trans{
+
+    background: rgba(0, 0, 0, 0.99);
+
+  }
+
+
+
+  .txt-gradnt-330 span{
+    position: relative;
+    display: inline-block;
+    color: royalblue;
+    overflow: hidden;
+    /* background: linear-gradient(to right, rgb(225, 0, 255), rgb(58, 235, 4) 50%, rgb(0, 89, 255) 50%); */
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-size: 200% 100%;
+    background-position: 100%;
+    transition: background-position 1000ms ease;
+    text-decoration: none;
+  }
+   
+  section{min-height:100vh;}
+
+
+
+
+
+
+
+
+
+  .split-text-container {
+    display: inline-block;
+    overflow: hidden;
+  }
+  
+  .react-split-text-char {
+    display: inline-block;
+    opacity: 0;
+    transform: translateY(100%);
+    transition: opacity 0.5s, transform 0.5s;
+  }
+  
+  .react-split-text-char.split {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  
+  .react-split-text-word {
+    display: inline-block;
+    opacity: 0;
+    transform: translateY(100%);
+    transition: opacity 0.5s, transform 0.5s;
+  }
+  
+  .react-split-text-word.word {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  
+
+
+
+
+
+
+  
+
+.main-box{
+  margin: auto;
+position: relative;
+width: 1200px;
+height: 1200px; 
+border-radius: 1000px;
+
+
+}
+.smal-box{
+position: absolute;
+width: 200px; height: 300px; 
+margin: 50px;
+border-radius: 9px;;
+overflow: hidden;
+background: #000; 
+transition: background 0.5s;
+}
+ 
+.smal-box Canvas{	 opacity:0;   background: #000; transition: opacity 0.3s,  background 0.5s; }
+.count3 Canvas{	width: 300px; height: 500px;   }
+
+.smal-box:hover Canvas{opacity: 1;	  background: #000;  transition: opacity 0.3s, background 0.6s;    } 
+ 
+ .card-header{ position: fixed; top: 50px; left: 25px; font-size: 18px; font-weight: 600;}
+ .small-canvas{ width: 200px; height: 350px; }
+ /* .count3 Canvas{	width: 300px; height: 500px;   } */
+
+
+.count1{  transform: rotate(0deg);  left:38%; top:-2%; border-color:chartreuse ;}
+.count2{   transform: rotate(45deg); left:62.5%; top:8.5%; border-color:blueviolet ; }
+.count3{  transform: rotate(90deg); right:2%;    top:33%; border-color:brown ; }
+.count4{  transform: rotate(135deg); left:63%; top:58%; border-color:burlywood ; }
+.count5{    transform: rotate(180deg); left:38%;  bottom: -2%; border-color:blue ; }
+.count6{  transform: rotate(225deg); left:12%;  top:58%; border-color:chocolate ; }
+.count7{  transform: rotate(270deg); left:2%;  top:33%; border-color:cyan ; }
+.count8{  transform: rotate(315deg); left:13%;  top:8%;  border-color:darkmagenta ; }
+
+ 
+ 
+.contac-form, .contac-form p, .contac-form b, .contac-form label  { color: #0500FF;}
+
+.contac-form input, .contac-form textarea { background: transparent; border: 1px solid #0500FF;   }
+
+
+.x-scroler{ height: 50px; background-color: #fff;}
+
+ 
+body::-webkit-scrollbar{
+  display: none;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.hidescrollbar::-webkit-scrollbar {
+  display: none!important;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.hidescrollbar {
+  -ms-overflow-style:  0 !important;  /* IE and Edge */
+  scrollbar-width:  0 !important; /* Firefox */
+}
+
+ 
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+ 
+
+/* .menu{ position: absolute; width: 50%; height: 100%; background-color:#fff; right: 0; top: 0; border: 1px solid red; z-index: 999;
+  animation: slideInRight 0.5s ease-in-out;  
+}
+
+
+.icon-bg{ width: 552px; height: 552px; position:absolute; right: 25px; top: 25px; background-color: #7A24CE; border-radius: 50px;}
+
+
+
+.menu-icon{ width: 50px; height: 50px; position:absolute; right: 25px; top: 25px; background-color: #00C853; border-radius: 50px; transition: background-color 0.3s ease-in-out;}
+.menu-icon:hover {
+  background-color: #009624;  
+} */
+
+
+ 
+
+ 
+.menu {
+  position: absolute;
+  right: 0;
+  top: 0; 
+  z-index: 999;
+
+  transition: width 1s ease-in-out, height 1s ease-in-out; /* Opening time: 5 seconds */
+}
+
+.menu.expanded {
+  width:100%; 
+  height: 100%; 
+ 
+}
+
+.icon-bg {
+  width: 0px; 
+  width:0px;
+  height:100vh;
+  position: absolute;  
+  top: 0;
+  right: 0;
+  background-color: #7A24CE; 
+  transition: width 1s ease-in-out, height 1s ease-in-out, background-color 1s ease-in-out; /* Opening time: 5 seconds */ 
+}
+
+.menu.expanded .icon-bg {
+    width: 50vw;
+    height:100vh;
+    position: absolute;
+    right:0;
+    top: 0;  
+    transition: width 1s ease-in-out, height 1s ease-in-out; /* Closing time: 3 seconds */ 
+    
+}
+
+.icon-menu {
+  width: 50px;
+  height: 50px;
+  position: fixed;
+   right:10px;
+  top: 10px;
+  background-color: #7A24CE;
+  border-radius: 50px;
+  color: #fff;
+  display: flex; 
+  cursor: pointer;
+  line-height: 3;
+  z-index: 9;
+}
+
+.icon-menu:hover {
+  background-color: #7A24CE;
+  z-index: 9;
+}
+ 
+ 
+.menuInside  { text-align: left; font-size: 40px; line-height: 2; font-weight: 600; height: 100vh; background-color: #000;  }
+
+
+
+
+/* .menuInside h2 {
+  font-size: 6em;
+  font-weight: 500;
+  color: #222;
+  letter-spacing: 5px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: 0.5s;
+}
+
+.menuInside h2:hover {
+  color: #fff;
+  text-shadow: 0 0 5px #03e9f4,
+              0 0 25px #03e9f4,
+              0 0 50px #03e9f4,
+              0 0 100px #03e9f4;
+} */
+
+.glowing-text {
+  animation: none;
+}
+
+.glowing-text:hover {
+  animation: glow 1.5s ease-in-out infinite alternate; /* Adjust duration as needed */
+}
+
+@keyframes glow {
+  from {
+    text-shadow: 0 0 10px rgba(122, 36, 206, 0.7); /* Adjust color and shadow as needed */
+  }
+  to {
+    text-shadow: none;
+  }
+}
+
+.nav-line { color: #fff;}
+.nav-line:hover { color: #57009e;}
+
+
+
+.offer-style{  border-radius: 2px; font-size: 20px;    }
+
+.animation-element { background-color: #003cff;}
+.development-element{ background-color: #ab05d4;}
+.design-element{ background-color: #008011;}
+
+ .oferRow{  margin-top: 10px; margin-bottom: 10px;}
+
+.menu-line{ height: 1px; width: 100%; background-color: #48005A;  }
+
+.offer-text{ font-size: 60px;  color: #ffffff; font-weight: 600; }
+
+
+
+ 
+
+
+
+.text {
+  fill: url(#p-stars);
+  stroke: #551F7A;
+  stroke-width: 3;
+}
+
+/* Colorize & animate pattern */
+.g-stars polygon {
+  stroke-width: 0;
+  -webkit-animation: stroke 2s infinite;
+  animation: stroke 2s infinite;
+}
+
+.g-stars polygon:nth-child(5n + 1) {
+  fill: #551F7A;
+  stroke: #551F7A;
+  -webkit-animation-delay: -0.4s;
+  animation-delay: -0.4s;
+}
+
+.g-stars polygon:nth-child(5n + 2) {
+  fill: #BA2799;
+  stroke: #BA2799;
+  -webkit-animation-delay: -0.8s;
+  animation-delay: -0.8s;
+}
+
+.g-stars polygon:nth-child(5n + 3) {
+  fill: #D9587A;
+  stroke: #D9587A;
+  -webkit-animation-delay: -1.2s;
+  animation-delay: -1.2s;
+}
+
+.g-stars polygon:nth-child(5n + 4) {
+  fill: #FFDD00;
+  stroke: #FFDD00;
+  -webkit-animation-delay: -1.6s;
+  animation-delay: -1.6s;
+}
+
+.g-stars polygon:nth-child(5n + 5) {
+  fill: #FFF3A1;
+  stroke: #FFF3A1;
+  -webkit-animation-delay: -2s;
+  animation-delay: -2s;
+}
+
+/* Change stroke-width within animation */
+@-webkit-keyframes stroke {
+  50% {
+    stroke-width: 8;
+  }
+}
+@keyframes stroke {
+  50% {
+    stroke-width: 8;
+  }
+}
+
+
+
+
+.footer{ font-size: 22px; color: #fff;}
+.tech-logo img{ height: 45px; width: 45px;}
+
+
+.lineOfferMidle{ height: 1px; background-color: #551F7A; width: 100%; opacity: 1;}
+
+
+
+ 
+ 
+
+
+#LogoSVG path:nth-child(1) {
+  stroke-dasharray: 0;
+  fill: transparent;
+  transition: stroke-dasharray 1.7s ease-in-out, fill 2s ease-in-out;
+}
+#LogoSVG:hover path:nth-child(1) {
+  stroke-dasharray: 130px; 
+  fill: #fff;  
+}
+#LogoSVG path:nth-child(2) {
+  stroke-dasharray: 0;
+  fill: transparent;
+  transition: stroke-dasharray 1.7s ease-in-out, fill 2s ease-in-out;
+  animation-delay: 0.6s; 
+}
+#LogoSVG:hover path:nth-child(2) {
+  stroke-dasharray: 130px; 
+  fill: #fff;  
+  }
+#LogoSVG path:nth-child(3) {
+  stroke-dasharray: 0;
+  fill: transparent;
+  transition: stroke-dasharray 1.7s ease-in-out, fill 2s ease-in-out;
+}
+
+#LogoSVG:hover path:nth-child(3) {
+  stroke-dasharray: 100px; /* Modify this value as needed */
+  fill: #fff; /* Modify this color as needed */
+}
+
+#LogoSVG path:nth-child(4) {
+  stroke-dasharray: 0;
+  fill: transparent;
+  transition: stroke-dasharray 1.7s ease-in-out, fill 2s ease-in-out;
+}
+
+#LogoSVG:hover path:nth-child(4) {
+  stroke-dasharray: 100px; /* Modify this value as needed */
+  fill: #fff; /* Modify this color as needed */
+}
+
+#LogoSVG path:nth-child(5) {
+  stroke-dasharray: 0;
+  fill: transparent;
+  transition: stroke-dasharray 1.7s ease-in-out, fill 2s ease-in-out;
+
+}
+
+#LogoSVG:hover path:nth-child(5) {
+  stroke-dasharray: 100px; /* Modify this value as needed */
+  fill: #fff; /* Modify this color as needed */
+}
+
+#LogoSVG path:nth-child(6) {
+  stroke-dasharray: 0;
+  fill: transparent;
+  transition: stroke-dasharray 1.7s ease-in-out, fill 2s ease-in-out;
+}
+#LogoSVG:hover path:nth-child(6) {
+  stroke-dasharray: 100px; /* Modify this value as needed */
+  fill: #fff; /* Modify this color as needed */
+}
+#LogoSVG path:nth-child(7) {
+  stroke-dasharray: 0;
+  fill: transparent;
+  transition: stroke-dasharray 1.7s ease-in-out, fill 2s ease-in-out;
+  animation-delay: 0.6s; 
+}
+#LogoSVG:hover path:nth-child(7) {
+  stroke-dasharray: 100px; /* Modify this value as needed */
+  fill: #fff; /* Modify this color as needed */
+  }
+#LogoSVG path:nth-child(8) {
+  stroke-dasharray: 0;
+  fill: transparent;
+  transition: stroke-dasharray 1.7s ease-in-out, fill 2s ease-in-out;
+}
+
+#LogoSVG:hover path:nth-child(8) {
+  stroke-dasharray: 100px; /* Modify this value as needed */
+  fill: #fff; /* Modify this color as needed */
+}
+
+#LogoSVG path:nth-child(9) {
+  stroke-dasharray: 0;
+  fill: transparent;
+  transition: stroke-dasharray 1.7s ease-in-out, fill 2s ease-in-out;
+}
+
+#LogoSVG:hover path:nth-child(9) {
+  stroke-dasharray: 100px; /* Modify this value as needed */
+  fill: #fff; /* Modify this color as needed */
+}
+
+#LogoSVG path:nth-child(10) {
+  stroke-dasharray: 0;
+  fill: transparent;
+  transition: stroke-dasharray 1.7s ease-in-out, fill 2s ease-in-out;
+
+}
+
+#LogoSVG:hover path:nth-child(10) {
+  stroke-dasharray: 100px; /* Modify this value as needed */
+  fill: #fff; /* Modify this color as needed */
+}
+
+
+#LogoSVG path:nth-child(11) {
+  stroke-dasharray: 0;
+  fill: transparent;
+  transition: stroke-dasharray 1.7s ease-in-out, fill 2s ease-in-out;
+}
+#LogoSVG:hover path:nth-child(11) {
+  stroke-dasharray: 100px; /* Modify this value as needed */
+  fill: #fff; /* Modify this color as needed */
+}
+#LogoSVG path:nth-child(12) {
+  stroke-dasharray: 0;
+  fill: transparent;
+  transition: stroke-dasharray 1.7s ease-in-out, fill 2s ease-in-out;
+  animation-delay: 0.6s; 
+}
+#LogoSVG:hover path:nth-child(12) {
+  stroke-dasharray: 100px; /* Modify this value as needed */
+  fill: #fff; /* Modify this color as needed */
+  }
+
+
+  .mainLogo{ text-align: center; color: #fff; height: 1px; background-color: #000; padding-top: 15px; letter-spacing: 15px;}
+
+}
+
+ 
