@@ -1,23 +1,19 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+// vite.config.js
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
   plugins: [react()],
-  base: "/",
+  base: '/',
   resolve: {
     alias: {
-      // Add aliases for your project directories here
-      '@': '/src', // Example: Map "@" to your "src" directory
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  assetsInclude: ['**/*.mp4'],
   build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          // Define manual chunks here if needed
-        }
-      }
-    },
-    chunkSizeWarningLimit: 5000 // Set your desired limit in kB
-  }
-});
+    rollupOptions: { output: { manualChunks: {} } },
+    chunkSizeWarningLimit: 5000,
+  },
+})

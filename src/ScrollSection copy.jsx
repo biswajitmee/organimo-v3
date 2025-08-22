@@ -35,7 +35,7 @@ import { StoneArch } from './StoneArch'
 import WaterScene from './component/WaterScene'
 import TerrainRaycastPart from './TerrainRaycastPart'
 import UnderwaterCausticsLight from './UnderwaterCausticsLight'
-
+ 
 import SunlightUnderwater from './SunlightUnderwater'
 
 import RectBeach from './RectBeach'
@@ -46,12 +46,13 @@ import sandUrl from '../src/assets/sand.jpg?url'
 import CausticsLightProjector from './component/underwater/CausticsLightProjector'
 import videoUrl from '../src/assets/caustics.mp4?url'
 import AnimatedGoboPlane from './component/underwater/AnimatedGoboPlane'
+ 
 
 import GodRays from './component/underwater/GodRays'
 import FocusLight from './component/underwater/FocusLight'
-
+ 
 import UnderwaterShadowBeams from './component/underwater/UnderwaterShadowBeams'
-import PerforatedLightMaskPlane from './component/PerforatedLightMaskPlane'
+
 
 export default function ScrollSection () {
   const sheet = getProject('myProject', { state: theatreeBBState }).sheet(
@@ -70,15 +71,12 @@ export default function ScrollSection () {
       style={{ height: '100vh', overflow: 'hidden' }}
       onMouseMove={handleMouseMove}
     >
-      <Canvas
-        shadows
+      <Canvas shadows 
         style={{ width: '100vw', height: '100vh' }}
-        gl={c => {
-          c.outputColorSpace = THREE.SRGBColorSpace
-          c.toneMapping = THREE.ACESFilmicToneMapping
-          c.toneMappingExposure = 1.04
-          c.physicallyCorrectLights = true
-          return c
+        gl={{
+          preserveDrawingBuffer: true,
+          antialias: true,
+          toneMapping: THREE.NoToneMapping
         }}
       >
         <WaterScene position={[0, -5, 0]} />
@@ -106,69 +104,50 @@ function Scene () {
 
     sheet.sequence.position = scroll.offset * sequenceLength
   })
+  const bgColor = '#000000'
 
   return (
     <>
       <ambientLight intensity={0.15} />
       <directionalLight intensity={0.6} position={[5, -250, 5]} />
+ 
 
-      <e.mesh theatreKey='SandSurface' position={[0, 0, -1]}>
+<e.mesh theatreKey='SandSurface' position={[0, 0, -1]}>
         <SandSurface textureUrl={sandUrl} size={3000} />
       </e.mesh>
 
-      <e.mesh theatreKey='CausticsLightProjector' position={[0, 0, -1]}>
-        <CausticsLightProjector
-          src={videoUrl}
-          angleDeg={20} // footprint size
-          height={1000}
-          cookieSize={1024} // try 4096 if your GPU can handle it
-          tile={7} // start at 1; increase to 2–3 only if you need finer cells
-          intensity={5}
-        />
-      </e.mesh>
 
-      {/* <PerforatedLightMaskPlane
-  position={[0, 300, 0]}
-  rotation={[-Math.PI / 2, 0, 0]}
-  size={[4000, 2200]}
-  density={2.6}
-  threshold={0.47}
-  warp={0.45}
-  speed={0.4}
-/> */}
+  
 
-      <e.mesh theatreKey='PerforatedLightMaskPlane' position={[0, 0, -1]}>
-        <PerforatedLightMaskPlane
-          position={[0, 600, 0]}
-          rotation={[-Math.PI / 2, 0, 0]} // horizontal “ceiling”
-          size={[6000, 3500]}
-          density={2.6}
-          threshold={0.47}
-          warp={0.45}
-          speed={0.4}
-        />
-      </e.mesh>
-      <e.mesh theatreKey='spotLight' position={[0, 0, -1]}>
-        <spotLight
-          position={[0, 1200, 0]}
-          target-position={[0, -500, 0]}
-          angle={0.9}
-          penumbra={1}
-          intensity={2100}
-          castShadow
-          shadow-mapSize={[2048, 2048]}
-          shadow-bias={-0.0004}
-          distance={6000}
-        />
-      </e.mesh>
+      <CausticsLightProjector
+        src={videoUrl}
+        angleDeg={20} // footprint size
+        height={1000}
+        cookieSize={1024} // try 4096 if your GPU can handle it
+        tile={7} // start at 1; increase to 2–3 only if you need finer cells
+        intensity={5}
+      />
+
+      <color attach='background' args={[bgColor]} />
 
       <e.mesh theatreKey='StoneArch' position={[0, 0, -1]}>
         <StoneArch />
       </e.mesh>
+      <fog attach='fog' args={['#000000', 10, 2000]} />
       <e.pointLight theatreKey='LightBlue' position={[0, 0, 1]} />
       <e.pointLight theatreKey='LightPurple' position={[0, 0, -2]} />
       <e.pointLight theatreKey='LightWhite' position={[-1, 0, -1]} />
 
+      <Sky
+        distance={450000}
+        sunPosition={[0, 0.06, 1]} // very low sun
+        inclination={0.49}
+        azimuth={-0.1}
+        turbidity={6}
+        rayleigh={2}
+        mieCoefficient={0.005}
+        mieDirectionalG={0.99}
+      />
       <PerspectiveCamera
         position={[0, 0, 0]}
         theatreKey='Camera'
