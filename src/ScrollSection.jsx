@@ -1,8 +1,10 @@
+// ScrollSection.jsx
 import * as THREE from 'three'
-import { useState } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
+import React, { useState, useRef, useEffect, Suspense } from 'react'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import {
   Gltf,
+  Image,
   ScrollControls,
   useScroll,
   Scroll,
@@ -18,79 +20,75 @@ import {
   useCurrentSheet
 } from '@theatre/r3f'
 
-import studio from '@theatre/studio'
-import extension from '@theatre/r3f/dist/extension'
-studio.initialize()
-studio.extend(extension)
-
-import BreakCode from './BreakCode'
-
-import { Cloude } from './Cloude'
-import { Iland } from './Iland'
-import { Space } from './Space'
-import { StoneHeight } from './StoneHeight'
-import { Cocacola } from './Cocacola'
-import { StoneArch } from './StoneArch'
+// import studio from '@theatre/studio'
+// import extension from '@theatre/r3f/dist/extension'
+// studio.initialize()
+// studio.extend(extension)
 
 import WaterScene from './component/WaterScene'
-import TerrainRaycastPart from './TerrainRaycastPart'
-import UnderwaterCausticsLight from './UnderwaterCausticsLight'
-
-import SunlightUnderwater from './SunlightUnderwater'
-
-import RectBeach from './RectBeach'
-
 import SandSurface from './component/underwater/SandSurface'
 import sandUrl from '../src/assets/sand.jpg?url'
-
 import CausticsLightProjector from './component/underwater/CausticsLightProjector'
 import videoUrl from '../src/assets/caustics.mp4?url'
-import AnimatedGoboPlane from './component/underwater/AnimatedGoboPlane'
+import UnderwaterFog from './component/underwater/UnderwaterFog'
+import UnderwaterSleeve from './component/underwater/UnderwaterSleeve'
+import ShaderSingleBeam from './component/underwater/ShaderSingleBeam'
+import { Product } from './component/Product.jsx'
+import HalfDomeRimGlow from './home/HalfDomeRimGlow.jsx'
+import ImagePlane from './ImagePlane.jsx'
+ 
+import { Fish } from './upperWater/fish.jsx'
+import { Seashell } from './upperWater/Seashell.jsx'
+import RockStone from './rock/RockStone.jsx'
 
-import GodRays from './component/underwater/GodRays'
-import FocusLight from './component/underwater/FocusLight'
-
-import UnderwaterShadowBeams from './component/underwater/UnderwaterShadowBeams'
-import PerforatedLightMaskPlane from './component/PerforatedLightMaskPlane'
+import CloudeGradiantShader from './component/CloudeGradiantShader.jsx'
+ 
+import CloudFloating from './component/CloudFloating.jsx'
+import CloudFloatingBack from './component/CloudFloatingBack.jsx'
 
 export default function ScrollSection () {
   const sheet = getProject('myProject', { state: theatreeBBState }).sheet(
     'Scene'
   )
   const [mouse, setMouse] = useState([0, 0])
-  const handleMouseMove = event => {
-    setMouse([event.clientX, event.clientY])
-  }
 
-  const isMobile = window.innerWidth <= 768 // Adjust the width breakpoint as needed
+  const isMobile = window.innerWidth <= 768
   const pages = isMobile ? 9 : 8.5
 
   return (
-    <div
-      style={{ height: '100vh', overflow: 'hidden' }}
-      onMouseMove={handleMouseMove}
-    >
+    <div style={{ height: '100vh', overflow: 'hidden' }}>
       <Canvas
-        shadows
-        style={{ width: '100vw', height: '100vh' }}
-        gl={c => {
-          c.outputColorSpace = THREE.SRGBColorSpace
-          c.toneMapping = THREE.ACESFilmicToneMapping
-          c.toneMappingExposure = 1.04
-          c.physicallyCorrectLights = true
-          return c
+        gl={{
+          alpha: true,
+          premultipliedAlpha: true, // important for Multiply
+          outputColorSpace: THREE.SRGBColorSpace,
+          toneMapping: THREE.NoToneMapping
         }}
+        shadows
+        onCreated={({ gl }) => {
+          gl.toneMapping = THREE.ACESFilmicToneMapping // ok
+          gl.toneMappingExposure = 1.0 // ~1.0–1.1 recommended
+          gl.outputColorSpace = THREE.SRGBColorSpace // three r152+
+        }}
+        style={{ width: '100vw', height: '100vh' }}
       >
-        <WaterScene position={[0, -5, 0]} />
+        <Suspense fallback={null}>
+          <WaterScene />
+          <UnderwaterFog
+            waterY={0}
+            surfaceColor='#E8C5D2'
+            surfaceDensity={0.00042}
+            underColor='#7E66A4'
+            underDensity={0.0014}
+            blendMeters={9}
+          />
+        </Suspense>
+
         <ScrollControls pages={pages} distance={3} damping={0.5}>
           <SheetProvider sheet={sheet}>
             <Scene />
           </SheetProvider>
-
-          <Scroll
-            html
-            style={{ position: 'absolute', width: '100vw' }}
-          ></Scroll>
+          <Scroll html style={{ position: 'absolute', width: '100vw' }} />
         </ScrollControls>
       </Canvas>
     </div>
@@ -100,92 +98,180 @@ export default function ScrollSection () {
 function Scene () {
   const sheet = useCurrentSheet()
   const scroll = useScroll()
+  const fishCtrl = useRef(null)
+
+  useEffect(() => {
+    // optional control calls
+    fishCtrl.current?.setProgress(0.25)
+    fishCtrl.current?.setSpeed(3)
+    fishCtrl.current?.start()
+  }, [])
 
   useFrame(() => {
     const sequenceLength = val(sheet.sequence.pointer.length)
-
     sheet.sequence.position = scroll.offset * sequenceLength
   })
 
   return (
     <>
-      <ambientLight intensity={0.15} />
-      <directionalLight intensity={0.6} position={[5, -250, 5]} />
-
+      <ambientLight intensity={0.55} />
+      <directionalLight intensity={0.6} />
       <e.mesh theatreKey='SandSurface' position={[0, 0, -1]}>
         <SandSurface textureUrl={sandUrl} size={3000} />
       </e.mesh>
 
+      <e.pointLight theatreKey='LightBlue' position={[0, 0, 1]} />
+      <e.pointLight theatreKey='LightBlue 2' position={[0, 0, 1]} />
+
       <e.mesh theatreKey='CausticsLightProjector' position={[0, 0, -1]}>
         <CausticsLightProjector
           src={videoUrl}
-          angleDeg={20} // footprint size
-          height={1000}
-          cookieSize={1024} // try 4096 if your GPU can handle it
-          tile={7} // start at 1; increase to 2–3 only if you need finer cells
-          intensity={5}
+          target={[0, 0, 0]}
+          fitRect={[9000, 9000]} // full coverage
+          worldCell={4} // ~60 units per cell (smaller = finer)
+          maxTile={10} // allow finer tiling if needed
+          cookieSize={1024} // sharper pattern
+          intensity={50}
+          playbackRate={2}
         />
       </e.mesh>
 
-      {/* <PerforatedLightMaskPlane
-  position={[0, 300, 0]}
-  rotation={[-Math.PI / 2, 0, 0]}
-  size={[4000, 2200]}
-  density={2.6}
-  threshold={0.47}
-  warp={0.45}
-  speed={0.4}
-/> */}
+      <group>
+        {/* <e.mesh
+          rotation={[0, 0, Math.PI / 4]}
+          theatreKey='ShaderSingleBeam_B'
+          position={[150, -20, 5]}
+        >
+          <ShaderSingleBeam
+            position={[0, -300, -400]}
+            rotation={[THREE.MathUtils.degToRad(-6), 0, 2.5]}
+            seedOffset={0}
+          />
+        </e.mesh> */}
 
-      <e.mesh theatreKey='PerforatedLightMaskPlane' position={[0, 0, -1]}>
-        <PerforatedLightMaskPlane
-          position={[0, 600, 0]}
-          rotation={[-Math.PI / 2, 0, 0]} // horizontal “ceiling”
-          size={[6000, 3500]}
-          density={2.6}
-          threshold={0.47}
-          warp={0.45}
-          speed={0.4}
-        />
-      </e.mesh>
-      <e.mesh theatreKey='spotLight' position={[0, 0, -1]}>
-        <spotLight
-          position={[0, 1200, 0]}
-          target-position={[0, -500, 0]}
-          angle={0.9}
-          penumbra={1}
-          intensity={2100}
-          castShadow
-          shadow-mapSize={[2048, 2048]}
-          shadow-bias={-0.0004}
-          distance={6000}
-        />
+        {/* third one if you want */}
+        <e.mesh
+          rotation={[0, 0, Math.PI / 4]}
+          theatreKey='ShaderSingleBeam_C'
+          position={[-607, -23, 1368]}
+        >
+          <ShaderSingleBeam
+            position={[30, -310, -380]}
+            rotation={[THREE.MathUtils.degToRad(-6), 0, 2.5]}
+            seedOffset={100}
+          />
+        </e.mesh>
+      </group>
+
+      <UnderwaterSleeve
+        topY={-0.12}
+        depth={12000}
+        radius={5000}
+        closeBottom
+        topColor='#8E79BE'
+        bottomColor='#2E264C'
+      />
+
+      <e.group theatreKey='RockStone' position={[0, 0, -1]}>
+        <RockStone scale={30} />
+      </e.group>
+      <e.group theatreKey='Product' position={[0, 0, -1]}>
+        <Product scale={30} />
+      </e.group>
+
+      <HalfDomeRimGlow
+        radius={4500}
+        edgeColor='#f2f0ff'
+        midBlue='#f2f0ff'
+        deepBlue='#322768'
+        gradientPower={0.25}
+        rimWidth={0.18}
+        rimFeather={0.22}
+        rimStrength={1.4}
+        raysCount={28}
+        raysSpeed={0.25}
+        raysStrength={0.55}
+        raysSharpness={2.0}
+        noiseAmount={0.25}
+      />
+
+      <e.mesh theatreKey='Image' position={[0, 0, -1]}>
+        <ImagePlane url='./sky.png' position={[0, 0, -5]} />
       </e.mesh>
 
-      <e.mesh theatreKey='StoneArch' position={[0, 0, -1]}>
-        <StoneArch />
-      </e.mesh>
-      <e.pointLight theatreKey='LightBlue' position={[0, 0, 1]} />
-      <e.pointLight theatreKey='LightPurple' position={[0, 0, -2]} />
-      <e.pointLight theatreKey='LightWhite' position={[-1, 0, -1]} />
+      {/* ///////////////  front -frnt front  - front- ///////////////// */}
+      <e.group theatreKey='Cloud-front' position={[0, 0, 1]}>
+        <CloudFloating
+          numPlanes={100}
+          opacity={0.22}
+          color1='#ffffff'
+          color2='#a292aa'
+          speed={0.9}
+          sharedNoise={{
+            worldScale: 0.0098,
+            warpAmt: 0.55,
+            ridgePower: 1.2,
+            ridgeMix: 0.95,
+            dir: [1.0, 0.09], // positive X --> left-to-right flow; tweak sign if needed
+            driftSpeed: 0.018,
+            wobbleFreq: 0.05,
+            wobbleMag: 0.12,
+            dissolveScale: 3.8,
+            dissolveSpeed: 0.03,
+            dissolveWidth: 0.11
+          }}
+        />
+      </e.group>
+
+      {/* ///////////////  back - back - back - back- back - back ///////////////// */}
+
+      <e.group theatreKey='Cloud-Back' position={[0, 0, 1]}>
+        <CloudFloatingBack
+          numPlanes={100}
+          opacity={0.02}
+          color1='#ffffff'
+          color2='#a292aa'
+          speed={0.9}
+          sharedNoise={{
+            worldScale: 0.0098,
+            warpAmt: 0.55,
+            ridgePower: 1.2,
+            ridgeMix: 0.95,
+            dir: [1.0, 0.09], // positive X --> left-to-right flow; tweak sign if needed
+            driftSpeed: 0.018,
+            wobbleFreq: 0.05,
+            wobbleMag: 0.12,
+            dissolveScale: 3.8,
+            dissolveSpeed: 0.03,
+            dissolveWidth: 0.11
+          }}
+        />
+      </e.group>
+
+      <e.group theatreKey='CloudeGradiantShader' position={[0, 0, 1]}>
+        <CloudeGradiantShader />
+      </e.group>
+
+      <e.group theatreKey='Fish' position={[0, 0, 1]}>
+        <Fish scale={100} />
+      </e.group>
+
+      {/* <PathFishAuto speed={2.5} fishScale={0.05} showPath /> */}
+
+      <e.group theatreKey='Seashell' position={[0, 0, 1]}>
+        <Seashell scale={10} />
+      </e.group>
+
+      {/* Lower volumetric box you pass through before entering water */}
 
       <PerspectiveCamera
         position={[0, 0, 0]}
         theatreKey='Camera'
         makeDefault
-        near={5}
+        near={0.1}
         far={5000}
         fov={15}
       />
-      {/* <ambientLight intensity={0.45} color='#ffd4b2' /> */}
-      {/* <directionalLight
-        position={[0, 10, 0]}
-        intensity={1}
-        color='#ffd4b2'
-        castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
-      /> */}
     </>
   )
 }

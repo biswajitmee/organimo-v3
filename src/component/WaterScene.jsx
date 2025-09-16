@@ -1,317 +1,206 @@
-// WaterScene.jsx
-import * as THREE from 'three';
-import { useRef, useEffect, useMemo } from 'react';
-import { useFrame, extend, useThree } from '@react-three/fiber';
-import { Stats, Sky } from '@react-three/drei';
-import { Water } from 'three/examples/jsm/objects/Water.js';
-import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
+// WaterScene.jsx — silky Organimo-like waves + color (sky disabled)
+import * as THREE from 'three'
+import { useRef, useEffect, useMemo } from 'react'
+import { useFrame, extend, useThree } from '@react-three/fiber'
+import { Stats } from '@react-three/drei'
+import { Water } from 'three/examples/jsm/objects/Water.js'
+import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js'
 
-extend({ Water });
+extend({ Water })
 
-/** Soft vertical gradient used for the horizon glow band */
-function makeSoftHorizonTexture({
-  width = 2048,
-  height = 512,
-  color = '#ffd7ef', // tint
-  mid = 0.52,        // band center (0..1)
-  band = 0.06,       // bright band thickness
-  feather = 0.28,    // falloff above/below band
-  strength = 0.6,    // overall opacity baked into texture
-} = {}) {
-  const c = document.createElement('canvas');
-  c.width = width; c.height = height;
-  const g = c.getContext('2d');
-
-  const y0 = (mid - feather) * height;
-  const y1 = (mid - band * 0.5) * height;
-  const y2 = (mid + band * 0.5) * height;
-  const y3 = (mid + feather) * height;
-
-  const grad = g.createLinearGradient(0, 0, 0, height);
-  grad.addColorStop(0.00, 'rgba(255,255,255,0)');
-  grad.addColorStop(Math.max(0, y0 / height), 'rgba(255,255,255,0)');
-  grad.addColorStop(Math.max(0, y1 / height), `rgba(255,255,255,${0.18 * strength})`);
-  grad.addColorStop(Math.max(0, y2 / height), `rgba(255,255,255,${1.00 * strength})`);
-  grad.addColorStop(Math.min(1, y3 / height), `rgba(255,255,255,${0.18 * strength})`);
-  grad.addColorStop(1.00, 'rgba(255,255,255,0)');
-
-  g.fillStyle = grad;
-  g.fillRect(0, 0, width, height);
-
-  // tint pass
-  g.globalCompositeOperation = 'source-atop';
-  g.fillStyle = color;
-  g.globalAlpha = 1;
-  g.fillRect(0, 0, width, height);
-
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.generateMipmaps = true;
-  tex.minFilter = THREE.LinearMipmapLinearFilter;
-  tex.magFilter = THREE.LinearFilter;
-  tex.anisotropy = 8;
-  return tex;
+/* ---------------- helpers ---------------- */
+function setU(w, key, v) {
+  const u = w?.material?.uniforms?.[key]
+  if (!u) return
+  if (u.value?.set && (typeof v === 'string' || typeof v === 'number')) u.value.set(v)
+  else u.value = v
 }
 
+// soft, thin horizon glow (end-wall blend)
+function makeHorizonBandTexture({
+  width = 4096,
+  height = 1024,
+  color = '#ffffff',
+  band = 0.52,
+  feather = 0.35,
+  strength = 0.35,
+} = {}) {
+  const c = document.createElement('canvas')
+  c.width = width; c.height = height
+  const g = c.getContext('2d')
+  const grd = g.createLinearGradient(0, 0, 0, height)
+  grd.addColorStop(Math.max(0, band - feather), 'rgba(255,255,255,0)')
+  grd.addColorStop(band, `rgba(255,255,255,${strength})`)
+  grd.addColorStop(Math.min(1, band + feather), 'rgba(255,255,255,0)')
+  g.fillStyle = grd
+  g.fillRect(0, 0, width, height)
+  g.globalCompositeOperation = 'source-in'
+  g.fillStyle = color
+  g.fillRect(0, 0, width, height)
+  const tex = new THREE.CanvasTexture(c)
+  tex.colorSpace = THREE.SRGBColorSpace
+  return tex
+}
+
+/* ---------------- component ---------------- */
 export default function WaterScene() {
-  const topRef = useRef();
-  const botRef = useRef();
-  const skyRef = useRef();
-  const bobRef = useRef();
-  const volNormalsRef = useRef();
+  const waterRef = useRef()
+  const bandRef = useRef()
 
-  // horizon glow refs
-  const horizonRef = useRef();
-  const glowMatRef = useRef();
-  const glowCfg = useRef({ distance: 0.90, height: 0.6, opacity: 0.9 });
+  const { scene, gl, camera } = useThree()
 
-  const { scene, gl, camera } = useThree();
-  const sun = useMemo(() => new THREE.Vector3(), []);
+  const bandTex = useMemo(() => makeHorizonBandTexture(), [])
+  const fwd = useMemo(() => new THREE.Vector3(), [])
 
-  // LAYERS
-  const L_DEFAULT = 0;
-  const L_CAUSTICS = 1;
-  const L_WATER = 2;
-
+  /* camera & renderer */
   useEffect(() => {
-    camera.layers.enable(L_DEFAULT);
-    camera.layers.enable(L_CAUSTICS);
-    camera.layers.enable(L_WATER);
-  }, [camera]);
+    camera.far = 50000
+    camera.updateProjectionMatrix()
+  }, [camera])
 
+  // background will be this clear color (no sky)
+  const EXPOSURE = 0.18
   useEffect(() => {
-    const SIZE = 10000;
-    const THICKNESS = 80;
-    const EPS = 0.25;
-    const SEP = 1.0; // separation between top/bottom water planes
+    gl.outputColorSpace = THREE.SRGBColorSpace
+    gl.toneMapping = THREE.ACESFilmicToneMapping
+    gl.toneMappingExposure = EXPOSURE
+    gl.setClearColor('#EAD0DB', 1) // pastel backdrop instead of sky
+    gl.physicallyCorrectLights = true
+  }, [gl])
+  useFrame(() => {
+    if (gl.toneMappingExposure !== EXPOSURE) gl.toneMappingExposure = EXPOSURE
+  })
 
-    const group = new THREE.Group();
-    scene.add(group);
+  /* fog (soft pastel) */
+  const FOG_COLOR = '#75607b'
+  const FOG_DENS = 0.00049
+  useEffect(() => {
+    scene.fog = new THREE.FogExp2(new THREE.Color(FOG_COLOR), FOG_DENS)
+  }, [scene])
+  useFrame(() => {
+    const fog = scene.fog
+    if (!fog || !fog.isFogExp2) {
+      scene.fog = new THREE.FogExp2(new THREE.Color(FOG_COLOR), FOG_DENS)
+    } else {
+      fog.color.set(FOG_COLOR)
+      fog.density = FOG_DENS
+    }
+  })
 
-    // ---- Atmosphere: fog that matches sky horizon hue ----
-    const fog = new THREE.FogExp2(new THREE.Color('#e9bfd2'), 0.00030); // tweak density to taste
-    scene.fog = fog;
-
-    // ---- Water volume (sides/bottom) for thickness look ----
-    const volGeom = new THREE.BoxGeometry(SIZE, THICKNESS, SIZE, 2, 1, 2);
-    const volNormals = new THREE.TextureLoader().load(
+  /* water setup (Organimo-like waves & color) */
+  useEffect(() => {
+    const waterGeometry = new THREE.PlaneGeometry(200000, 200000, 1, 1)
+    const normals = new THREE.TextureLoader().load(
       'https://threejs.org/examples/textures/waternormals.jpg',
       (tx) => {
-        tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
-        tx.minFilter = THREE.LinearMipMapLinearFilter;
-        tx.magFilter = THREE.LinearFilter;
-        tx.repeat.set(6, 2);
+        tx.wrapS = tx.wrapT = THREE.RepeatWrapping
+        tx.repeat.set(1.9, 1.15)
+        tx.rotation = Math.PI * 0.06
       }
-    );
-    volNormalsRef.current = volNormals;
+    )
 
-    const volMat = new THREE.MeshPhysicalMaterial({
-      color: 0x0b3d57,
-      roughness: 0.95,
-      metalness: 0.0,
-      normalMap: volNormals,
-      normalScale: new THREE.Vector2(0.8, 0.8),
-      transparent: true,
-      opacity: 0.9,
-      depthWrite: false,
-      side: THREE.FrontSide,
-    });
-
-    const volume = new THREE.Mesh(volGeom, volMat);
-    volume.position.y = -(THICKNESS * 0.5) - EPS;
-    volume.renderOrder = -1;
-    volume.layers.set(L_WATER);
-    group.add(volume);
-
-    // ---- Shared water normals (for Water shader) ----
-    const waterNormals = new THREE.TextureLoader().load(
-      'https://threejs.org/examples/textures/waternormals.jpg',
-      (tx) => {
-        tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
-        tx.minFilter = THREE.LinearMipMapLinearFilter;
-        tx.magFilter = THREE.LinearFilter;
-        const maxAniso = gl.capabilities.getMaxAnisotropy?.() ?? 1;
-        tx.anisotropy = Math.min(8, maxAniso);
-      }
-    );
-
-    // IMPORTANT: fog: true so Water respects scene fog
-    const params = {
-      textureWidth: 256,
-      textureHeight: 256,
-      waterNormals,
+    const water = new Water(waterGeometry, {
+      textureWidth: 512,
+      textureHeight: 512,
+      waterNormals: normals,
       sunDirection: new THREE.Vector3(),
-      sunColor: 0xffffff,
-      waterColor: 0x6D3FB3,
-      distortionScale: 4.5,
+      sunColor: 0x000000,               // sun OFF
+      waterColor: new THREE.Color('#6E7EA1'),
+      distortionScale: 0.28,
       fog: true,
-    };
+    })
 
-    const plane = new THREE.PlaneGeometry(SIZE, SIZE, 512, 512);
+//     function disableWaterSun(water) {
+//   const u = water?.material?.uniforms
+//   if (!u) return
+//   if (u.sunColor) u.sunColor.value.set(0, 0, 0)     // <-- kills sun light
+//   if (u.reflectivity) u.reflectivity.value = 0.0     // (some builds expose this)
+//   if (u.sunDirection) u.sunDirection.value.set(0, 1, 0) // any dir; color=black already disables
+// }
+// disableWaterSun(water)
 
-    // ---- Top Water (seen from above) ----
-    const top = new Water(plane, params);
-    top.rotation.x = -Math.PI / 2;
-    top.position.y = +SEP * 0.5;
-    top.material.side = THREE.FrontSide;
-    top.material.depthWrite = true;
-    top.material.depthTest = true;
-    top.material.polygonOffset = true;
-    top.material.polygonOffsetFactor = -4;
-    top.material.polygonOffsetUnits = -4;
-    if (top.material.uniforms.size) top.material.uniforms.size.value = 0.8;
-    if (top.material.uniforms.reflectivity) top.material.uniforms.reflectivity.value = 0.03; // softer specular
-    if (top.material.uniforms.alpha) top.material.uniforms.alpha.value = 1.0;
-    top.renderOrder = 2;
-    top.layers.set(L_WATER);
-    group.add(top);
-    topRef.current = top;
 
-    // ---- Bottom Water (underside, seen from below) ----
-    const bot = new Water(plane.clone(), params);
-    bot.rotation.x = Math.PI / 2;
-    bot.position.y = -SEP * 0.5;
-    bot.material.side = THREE.FrontSide;
-    bot.material.depthWrite = false;
-    bot.material.depthTest = false;
-    bot.material.polygonOffset = false;
-    if (bot.material.uniforms.size) bot.material.uniforms.size.value = 0.8;
-    if (bot.material.uniforms.reflectivity) bot.material.uniforms.reflectivity.value = 0.0; // no mirror
-    if (bot.material.uniforms.alpha) bot.material.uniforms.alpha.value = 1.0;
-    bot.renderOrder = 1;
-    bot.layers.set(L_WATER);
-    group.add(bot);
-    botRef.current = bot;
+    water.rotation.x = -Math.PI / 2
+    water.frustumCulled = false
+    water.material.side = THREE.DoubleSide
+    water.material.transparent = false
+    water.material.depthWrite = true
+    water.material.depthTest = true
 
-    // ---- Soft Horizon Glow (non-additive alpha blend) ----
-    const glowTex = makeSoftHorizonTexture({
-      color: '#ffd7ef', // match sky tint
-      mid: 0.52,
-      band: 0.06,
-      feather: 0.28,
-      strength: 0.6,
-    });
+    setU(water, 'size', 0.85)
+    setU(water, 'alpha', 1.0)
+    if (water.material.uniforms.reflectivity) water.material.uniforms.reflectivity.value = 0.0 // flatter without sky
 
-    const glowMat = new THREE.MeshBasicMaterial({
-      map: glowTex,
-      transparent: true,
-      blending: THREE.CustomBlending,
-      blendEquation: THREE.AddEquation,
-      blendSrc: THREE.SrcAlphaFactor,
-      blendDst: THREE.OneMinusSrcAlphaFactor,
-      depthWrite: false,
-      depthTest: false,
-      premultipliedAlpha: false,
-      toneMapped: false,
-      opacity: glowCfg.current.opacity,
-    });
-    glowMatRef.current = glowMat;
+    scene.add(water)
+    waterRef.current = water
 
-    const glowGeo = new THREE.PlaneGeometry(80000, 9000);
-    const glow = new THREE.Mesh(glowGeo, glowMat);
-    glow.renderOrder = 1000;
-    glow.layers.set(L_WATER);
-    group.add(glow);
-    horizonRef.current = glow;
+    // GUI
+    const gui = new GUI()
+    const params = { distortionScale: 0.28, size: 0.85, waterColor: '#75607b' }
+    gui.add(params, 'distortionScale', 0, 1).step(0.01).onChange(v => setU(water, 'distortionScale', v))
+    gui.add(params, 'size', 0.4, 1.4).step(0.01).onChange(v => setU(water, 'size', v))
+    gui.addColor(params, 'waterColor').onChange(v => setU(water, 'waterColor', new THREE.Color(v)))
 
-    // ---- GUI ----
-    const gui = new GUI({ title: 'Controls' });
-    const sunParams = { elevation: 0.25, azimuth: 180 };
-    const fogUI = { density: fog.density, color: `#${fog.color.getHexString()}` };
-    const waterUI = { distortionScale: params.distortionScale, size: 0.8 };
-    const glowUI = { distance: glowCfg.current.distance, height: glowCfg.current.height, opacity: glowCfg.current.opacity };
+    return () => { gui.destroy(); scene.remove(water); water.geometry.dispose(); water.material.dispose() }
+  }, [scene])
 
-    const updateSun = () => {
-      const phi = THREE.MathUtils.degToRad(90 - sunParams.elevation);
-      const theta = THREE.MathUtils.degToRad(sunParams.azimuth);
-      sun.setFromSphericalCoords(1, phi, theta);
-      if (skyRef.current) skyRef.current.material.uniforms.sunPosition.value.copy(sun);
-      [topRef.current, botRef.current].forEach(w => {
-        if (w) w.material.uniforms.sunDirection.value.copy(sun).normalize();
-      });
-    };
-
-    gui.add(sunParams, 'elevation', 0, 90, 0.01).onChange(updateSun);
-    gui.add(sunParams, 'azimuth', -180, 180, 0.1).onChange(updateSun);
-
-    gui.addColor(fogUI, 'color').onChange((v) => fog.color.set(v));
-    gui.add(fogUI, 'density', 0.0001, 0.001, 0.00001).onChange((v) => (fog.density = v));
-
-    gui.add(waterUI, 'distortionScale', 0, 8, 0.01).onChange((v) => {
-      [topRef.current, botRef.current].forEach(w => {
-        if (w?.material.uniforms.distortionScale) w.material.uniforms.distortionScale.value = v;
-      });
-    });
-    gui.add(waterUI, 'size', 0.1, 10, 0.01).onChange((v) => {
-      [topRef.current, botRef.current].forEach(w => {
-        if (w?.material.uniforms.size) w.material.uniforms.size.value = v;
-      });
-    });
-
-    gui.add(glowUI, 'distance', 0.75, 0.97, 0.01).onChange((v) => (glowCfg.current.distance = v));
-    gui.add(glowUI, 'height', -1.0, 2.0, 0.01).onChange((v) => (glowCfg.current.height = v));
-    gui.add(glowUI, 'opacity', 0.2, 1.5, 0.01).onChange((v) => {
-      glowCfg.current.opacity = v;
-      if (glowMatRef.current) glowMatRef.current.opacity = v;
-    });
-
-    updateSun();
-
-    return () => {
-      gui.destroy();
-      scene.remove(group);
-      scene.fog = null;
-
-      // dispose
-      top.geometry.dispose(); top.material.dispose();
-      bot.geometry.dispose(); bot.material.dispose();
-      volGeom.dispose(); volMat.dispose(); volNormals.dispose();
-
-      glowGeo.dispose();
-      glowMat.dispose();
-      glowTex.dispose();
-    };
-  }, [scene, sun, gl]);
-
-  // Animate + keep the horizon band glued to the far horizon
+  /* animate waves & keep plane centered under camera (infinite look) */
   useFrame((_, dt) => {
-    if (bobRef.current) {
-      bobRef.current.position.y = Math.sin(performance.now() * 0.001) * 20 + 5;
+    const w = waterRef.current
+    if (!w) return
+    const u = w.material.uniforms
+    if (u?.time) u.time.value = (u.time.value + dt * 0.22) % 1000.0
+    const tex = u?.normalSampler?.value
+    if (tex) {
+      tex.offset.x += dt * 0.010
+      tex.offset.y += dt * 0.006
     }
-    if (topRef.current) topRef.current.material.uniforms.time.value += dt;
-    if (botRef.current) botRef.current.material.uniforms.time.value += dt;
+    w.position.x = camera.position.x
+    w.position.z = camera.position.z
+  })
 
-    if (volNormalsRef.current) {
-      volNormalsRef.current.offset.x += dt * 0.03;
-      volNormalsRef.current.offset.y += dt * 0.015;
-    }
+  /* soft horizon band (still active with no sky) */
+  useFrame(({ gl, camera: cam }) => {
+    const band = bandRef.current
+    if (!band) return
 
-    const glow = horizonRef.current;
-    if (glow) {
-      const dir = new THREE.Vector3();
-      camera.getWorldDirection(dir).normalize();
-      const dist = camera.far * glowCfg.current.distance; // how far the glow sits
-      glow.position.copy(camera.position).add(dir.multiplyScalar(dist));
-      glow.position.y = glowCfg.current.height;           // small lift above water hides seam
-      glow.lookAt(camera.position);
-    }
-  });
+    band.visible = (gl.getRenderTarget() === null) && (camera.position.y >= 0)
+
+    cam.getWorldDirection(fwd).normalize()
+    const targetY = 2
+    const dy = Math.abs(fwd.y) < 1e-4 ? (fwd.y < 0 ? -1e-4 : 1e-4) : fwd.y
+    let t = (targetY - cam.position.y) / dy
+    t = THREE.MathUtils.clamp(t, 2000, 20000)
+
+    band.position.copy(cam.position).addScaledVector(fwd, t)
+    band.quaternion.copy(cam.quaternion)
+
+    const fovY = THREE.MathUtils.degToRad(cam.fov)
+    const height = 2 * Math.tan(fovY / 2) * t
+    const width = height * cam.aspect
+    const thickness = 220
+    band.scale.set(width * 1.05, thickness, 1)
+  })
 
   return (
     <>
-      <Sky
-        ref={skyRef}
-        scale={10000}
-        sunPosition={sun}
-        turbidity={7}
-        rayleigh={2.2}
-        mieCoefficient={0.004}
-        mieDirectionalG={0.9}
-      />
-      <mesh ref={bobRef}>
-        <meshStandardMaterial roughness={0} />
+      {/* (sky dome removed) */}
+
+      {/* horizon glow */}
+      <mesh ref={bandRef} renderOrder={999} frustumCulled={false}>
+        {/* <planeGeometry args={[1, 1]} /> */}
+        {/* <meshBasicMaterial
+          map={bandTex}
+          transparent
+          opacity={0.45}
+          blending={THREE.AdditiveBlending}
+          depthTest={false}     // overlay cleanly without sky
+          depthWrite={false}
+          toneMapped={false}
+        /> */}
       </mesh>
+
       <Stats />
     </>
-  );
+  )
 }
