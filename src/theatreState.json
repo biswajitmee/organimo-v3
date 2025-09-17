@@ -6978,6 +6978,19 @@
                 "__debugName": "Cloud-Back:[\"position\",\"x\"]",
                 "keyframes": [
                   {
+                    "id": "FDxe0-w6Xf",
+                    "position": 0,
+                    "connectedRight": true,
+                    "handles": [
+                      0.5,
+                      1,
+                      0.5,
+                      0
+                    ],
+                    "type": "bezier",
+                    "value": 22.761019202671747
+                  },
+                  {
                     "id": "s32albfEGX",
                     "position": 2.2,
                     "connectedRight": true,
@@ -6997,6 +7010,19 @@
                 "__debugName": "Cloud-Back:[\"position\",\"y\"]",
                 "keyframes": [
                   {
+                    "id": "NMZS3_PKcb",
+                    "position": 0,
+                    "connectedRight": true,
+                    "handles": [
+                      0.5,
+                      1,
+                      0.5,
+                      0
+                    ],
+                    "type": "bezier",
+                    "value": 570.3430913615413
+                  },
+                  {
                     "id": "WXAQtmOAgW",
                     "position": 2.2,
                     "connectedRight": true,
@@ -7015,6 +7041,19 @@
                 "type": "BasicKeyframedTrack",
                 "__debugName": "Cloud-Back:[\"position\",\"z\"]",
                 "keyframes": [
+                  {
+                    "id": "FuTZtWBspa",
+                    "position": 0,
+                    "connectedRight": true,
+                    "handles": [
+                      0.5,
+                      1,
+                      0.5,
+                      0
+                    ],
+                    "type": "bezier",
+                    "value": -595.2414527520576
+                  },
                   {
                     "id": "91Lkj_bz3L",
                     "position": 2.2,
@@ -7348,17 +7387,59 @@
               "n8RpKaYeR7": {
                 "type": "BasicKeyframedTrack",
                 "__debugName": "Cloud-front:[\"position\",\"x\"]",
-                "keyframes": []
+                "keyframes": [
+                  {
+                    "id": "fzcS-09Eld",
+                    "position": 0,
+                    "connectedRight": true,
+                    "handles": [
+                      0.5,
+                      1,
+                      0.5,
+                      0
+                    ],
+                    "type": "bezier",
+                    "value": 0
+                  }
+                ]
               },
               "-vQgFPdLG9": {
                 "type": "BasicKeyframedTrack",
                 "__debugName": "Cloud-front:[\"position\",\"y\"]",
-                "keyframes": []
+                "keyframes": [
+                  {
+                    "id": "1Q09F8P-qZ",
+                    "position": 0,
+                    "connectedRight": true,
+                    "handles": [
+                      0.5,
+                      1,
+                      0.5,
+                      0
+                    ],
+                    "type": "bezier",
+                    "value": 357.46626750910355
+                  }
+                ]
               },
               "ch6C1cJ-_0": {
                 "type": "BasicKeyframedTrack",
                 "__debugName": "Cloud-front:[\"position\",\"z\"]",
-                "keyframes": []
+                "keyframes": [
+                  {
+                    "id": "D4rfAzfCWa",
+                    "position": 0,
+                    "connectedRight": true,
+                    "handles": [
+                      0.5,
+                      1,
+                      0.5,
+                      0
+                    ],
+                    "type": "bezier",
+                    "value": -305.6472512954042
+                  }
+                ]
               },
               "IUNhTN9yqe": {
                 "type": "BasicKeyframedTrack",
@@ -7898,6 +7979,7 @@
   },
   "definitionVersion": "0.4.0",
   "revisionHistory": [
+    "XCCQXh_2JJ9RD4AD",
     "K9_iXz7zDQbHS71s",
     "rhx4CVIuNPgQaXIy",
     "peyj4mXF_holMgCA",
