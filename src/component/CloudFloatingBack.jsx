@@ -10,13 +10,13 @@ function randVec2(baseX, baseY, mag = 0.12) {
       
 export default function CloudFloatingBack({
   position = [0, 8, 0],
-  color1 = '#1808f7',
+  color1 = '#ffffff',
   color2 = '#0c00b3',
   opacity = 0.02,
   speed = 0.9,
   numPlanes = 100,
-  xSpread = 700,
-  ySpread = 200, 
+  xSpread = 500,
+  ySpread = 150, 
   zSpread = 100,
   baseScale = 100,
   debug = false,

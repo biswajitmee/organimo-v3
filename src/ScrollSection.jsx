@@ -114,6 +114,16 @@ function Scene () {
 
   return (
     <>
+
+    <PerspectiveCamera
+        position={[0, 0, 0]}
+        theatreKey='Camera'
+        makeDefault
+        near={0.1}
+        far={5000}
+        fov={15}
+      />
+
       <ambientLight intensity={0.55} />
       <directionalLight intensity={0.6} />
       <e.mesh theatreKey='SandSurface' position={[0, 0, -1]}>
@@ -202,7 +212,7 @@ function Scene () {
       {/* ///////////////  front -frnt front  - front- ///////////////// */}
       <e.group theatreKey='Cloud-front' position={[0, 0, 1]}>
         <CloudFloating
-          numPlanes={100}
+          numPlanes={40}
           opacity={0.22}
           color1='#ffffff'
           color2='#a292aa'
@@ -221,16 +231,16 @@ function Scene () {
             dissolveWidth: 0.11
           }}
         />
-      </e.group>
+      </e.group>   
 
       {/* ///////////////  back - back - back - back- back - back ///////////////// */}
 
       <e.group theatreKey='Cloud-Back' position={[0, 0, 1]}>
         <CloudFloatingBack
-          numPlanes={100}
-          opacity={0.02}
-          color1='#ffffff'
-          color2='#a292aa'
+          numPlanes={10}
+          opacity={0.03}
+          color1='#1808f7'
+          color2='#1808f7'
           speed={0.9}
           sharedNoise={{
             worldScale: 0.0098,
@@ -264,14 +274,7 @@ function Scene () {
 
       {/* Lower volumetric box you pass through before entering water */}
 
-      <PerspectiveCamera
-        position={[0, 0, 0]}
-        theatreKey='Camera'
-        makeDefault
-        near={0.1}
-        far={5000}
-        fov={15}
-      />
+      
     </>
   )
 }
