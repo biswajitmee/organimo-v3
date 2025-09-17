@@ -5,7 +5,7 @@ import * as THREE from 'three'
 
 function rand(min, max) { return Math.random() * (max - min) + min }
 function randVec2(baseX, baseY, mag = 0.12) {
-  return [baseX + rand(-mag, mag), baseY + rand(-mag, mag)]
+  return [baseX + rand(-mag, mag), baseY + rand(-mag, mag)] 
 }
 
 export default function CloudFloating({

@@ -70,7 +70,7 @@ export default function ScrollSection () {
           gl.toneMappingExposure = 1.0 // ~1.0–1.1 recommended
           gl.outputColorSpace = THREE.SRGBColorSpace // three r152+
         }}
-        style={{ width: '100vw', height: '100vh' }}
+        style={{ width: '100vw', height: '100vh' }}  
       >
         <Suspense fallback={null}>
           <WaterScene />
