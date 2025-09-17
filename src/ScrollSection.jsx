@@ -12,9 +12,9 @@ import {
 } from '@react-three/drei'
 import { getProject, val } from '@theatre/core'
 import theatreeBBState from './theatreState.json'
-import { Sky } from '@react-three/drei'
+ 
 import {
-  editable as e,
+  editable as e, 
   SheetProvider,
   PerspectiveCamera,
   useCurrentSheet
