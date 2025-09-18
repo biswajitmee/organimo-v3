@@ -145,8 +145,7 @@ export default function CloudFloating({
               uSpeed: { value: cfg.speed },
               uSeed: { value: cfg.seed },
               // start with per-layer dir
-              uDir: { value: new THREE.Vector2(cfg.dir[0], cfg.dir[1]) },
-              
+              uDir: { value: new THREE.Vector2(cfg.dir[0], cfg.dir[1]) }
             }}
             vertexShader={vertexShader}
             fragmentShader={fragmentShader}
@@ -159,18 +158,11 @@ export default function CloudFloating({
 
 // Vertex + Fragment shaders (kept inline)
 const vertexShader = `
-// vertexShader - replace your current one with this
-varying vec2 vUv;
-varying vec3 vWorldPos;
-
-
-void main() {
-  vUv = uv;
-  vec4 world = modelMatrix * vec4(position, 1.0);
-  vWorldPos = world.xyz;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-}
-
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
 `
 
 const fragmentShader = `
@@ -236,7 +228,7 @@ void main() {
   vec2 offset = mainDrift + perpWobble;
 
   float body = fbm(uv * 6.0 + offset + uSeed * 0.058);
-  float edge = fbm(uv * 19.0 + offset * 0.4 + uSeed * 0.0010);
+  float edge = fbm(uv * 12.0 + offset * 0.2 + uSeed * 0.0013);
 
   float blob = smoothstep(0.85, 0.2, dist - body * 0.25);
   float feather = smoothstep(0.4, 1.0, dist + edge * 0.35);
@@ -244,7 +236,7 @@ void main() {
   float alpha = blob * (1.0 - feather) * uOpacity;
   alpha = max(alpha, 0.0005);
 
-  float edgeFade = smoothstep(0.8, 0.35, length(uv));
+  float edgeFade = smoothstep(1.95, 0.4, length(uv));
   alpha *= edgeFade;
 
   vec3 baseCol = mix(uColor1, uColor2, vUv.y + body * 0.15);

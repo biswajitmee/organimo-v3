@@ -13,7 +13,7 @@ export default function ImagePlane({ url, ...props }) {
 
   return (
     <mesh {...props}>
-      <planeGeometry args={[2000, 1200,1,1,1]} />
+      <planeGeometry args={[3000, 2000,1,1,1]} />
       <meshBasicMaterial
         map={texture}
         transparent

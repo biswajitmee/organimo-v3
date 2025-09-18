@@ -236,7 +236,7 @@ void main() {
   vec2 offset = mainDrift + perpWobble;
 
   float body = fbm(uv * 6.0 + offset + uSeed * 0.058);
-  float edge = fbm(uv * 19.0 + offset * 0.4 + uSeed * 0.0010);
+  float edge = fbm(uv * 18.0 + offset * 0.2 + uSeed * 0.0013);
 
   float blob = smoothstep(0.85, 0.2, dist - body * 0.25);
   float feather = smoothstep(0.4, 1.0, dist + edge * 0.35);

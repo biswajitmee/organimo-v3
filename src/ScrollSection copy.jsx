@@ -20,10 +20,10 @@ import {
   useCurrentSheet
 } from '@theatre/r3f'
 
-// import studio from '@theatre/studio'
-// import extension from '@theatre/r3f/dist/extension'
-// studio.initialize()
-// studio.extend(extension)
+import studio from '@theatre/studio'
+import extension from '@theatre/r3f/dist/extension'
+studio.initialize()
+studio.extend(extension)
 
 import WaterScene from './component/WaterScene'
 import SandSurface from './component/underwater/SandSurface'
@@ -214,13 +214,10 @@ function Scene () {
        <e.group theatreKey='Cloud-front-of-camera' position={[0, 0, 1]}>
         <CloudFloating
           numPlanes={10}
-          opacity={0.15}
-          color1='#8d8093'
-          color2='#8d8093'
+          opacity={0.22}
+          color1='#ffffff'
+          color2='#a292aa'
           speed={0.9}
-          xSpread = {200} 
-          ySpread = {70} 
-          zSpread = {10} 
           sharedNoise={{
             worldScale: 0.0098,
             warpAmt: 0.55,
@@ -243,9 +240,9 @@ function Scene () {
           opacity={0.50}
           color1='#8d8093'
           color2='#ffffff'
-          speed={0.8}
+          speed={1.0}
           sharedNoise={{
-            worldScale: 0.50,
+            worldScale: 0.10,
             warpAmt: 0.25,
             ridgePower: 0.82,
             ridgeMix: 0.95,
@@ -269,7 +266,7 @@ function Scene () {
           opacity={0.15}
           color1='#ffffff'
           color2='#1004b9'
-          speed={0.8}
+          speed={1.0}
           sharedNoise={{
             worldScale: 10.0098,
             warpAmt: 0.55,
@@ -286,36 +283,9 @@ function Scene () {
         />
       </e.group>
 
-    
-
-    <e.group theatreKey='Cloud-bottom' position={[0, 0, 1]}>        
-
-        <CloudFloating
-          numPlanes={25}
-          opacity={0.45}
-          color1='#fb0404'
-          color2='#e43e07'
-           xSpread = {500} 
-          ySpread = {60} 
-          zSpread = {60} 
-          speed={0}
-          sharedNoise={{
-            worldScale: 10.0098,
-            warpAmt: 0.55,
-            ridgePower: 1.2,
-            ridgeMix: 5.95,
-            dir: [-1.0, 0.52], // positive X --> left-to-right flow; tweak sign if needed
-            driftSpeed: 0.058,
-            wobbleFreq: 0.02,
-            wobbleMag: 0.12,
-            dissolveScale: 3.8,
-            dissolveSpeed: 0.03,
-            dissolveWidth: 0.11
-          }}
-        />
+      <e.group theatreKey='CloudeGradiantShader' position={[0, 0, 1]}>
+        <CloudeGradiantShader />
       </e.group>
-
-
 
       <e.group theatreKey='Fish' position={[0, 0, 1]}>
         <Fish scale={100} />
