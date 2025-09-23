@@ -12,9 +12,9 @@ import {
 } from '@react-three/drei'
 import { getProject, val } from '@theatre/core'
 import theatreeBBState from './theatreState.json'
- 
+
 import {
-  editable as e, 
+  editable as e,
   SheetProvider,
   PerspectiveCamera,
   useCurrentSheet
@@ -36,15 +36,20 @@ import ShaderSingleBeam from './component/underwater/ShaderSingleBeam'
 import { Product } from './component/Product.jsx'
 import HalfDomeRimGlow from './home/HalfDomeRimGlow.jsx'
 import ImagePlane from './ImagePlane.jsx'
- 
+
 import { Fish } from './upperWater/fish.jsx'
 import { Seashell } from './upperWater/Seashell.jsx'
 import RockStone from './rock/RockStone.jsx'
+import { Newproduct } from './rock/NewProduct.jsx'
 
 import CloudeGradiantShader from './component/CloudeGradiantShader.jsx'
- 
+
 import CloudFloating from './component/CloudFloating.jsx'
 import CloudFloatingBack from './component/CloudFloatingBack.jsx'
+import { HeroRock } from './rock/HeroRock.jsx'
+import CloudFloatingInstanced from './CloudFloatingInstanced.jsx'
+import { ConchShell } from './ConchShell.jsx'
+// import GlowRingWithBloom from './GlowRingWithBloom.jsx'
 
 export default function ScrollSection () {
   const sheet = getProject('myProject', { state: theatreeBBState }).sheet(
@@ -70,7 +75,7 @@ export default function ScrollSection () {
           gl.toneMappingExposure = 1.0 // ~1.0–1.1 recommended
           gl.outputColorSpace = THREE.SRGBColorSpace // three r152+
         }}
-        style={{ width: '100vw', height: '100vh' }}  
+        style={{ width: '100vw', height: '100vh' }}
       >
         <Suspense fallback={null}>
           <WaterScene />
@@ -96,6 +101,8 @@ export default function ScrollSection () {
 }
 
 function Scene () {
+  const cameraRef = useRef()
+
   const sheet = useCurrentSheet()
   const scroll = useScroll()
   const fishCtrl = useRef(null)
@@ -114,8 +121,8 @@ function Scene () {
 
   return (
     <>
-
-    <PerspectiveCamera
+      <PerspectiveCamera
+        ref={cameraRef}
         position={[0, 0, 0]}
         theatreKey='Camera'
         makeDefault
@@ -123,6 +130,54 @@ function Scene () {
         far={5000}
         fov={15}
       />
+
+      <e.group theatreKey='Newproduct' position={[0, 0, -1]}>
+        <Newproduct scale={26} />
+      </e.group>
+
+      <e.group theatreKey='HeroRock' position={[0, 0, -1]}>
+        <HeroRock scale={80} />
+      </e.group>
+
+      {/* <e.group theatreKey='sankho' position={[0, 0, -1]}>
+  <ConchShell scale={600}/>
+      </e.group>  */}
+
+      <e.group theatreKey='Cloud-bottom-gradient' position={[0, 0, 1]}>
+        <CloudFloating
+          numPlanes={30}
+          opacity={1}
+          color1='#bc71d1'
+          color2='#f1f1f1'
+          speed={0}
+          xSpread={300}
+          ySpread={60}
+          zSpread={30}
+          sharedNoise={{
+            worldScale: 0.0098,
+            warpAmt: 0.55,
+            ridgePower: 1.2,
+            ridgeMix: 5.95,
+            dir: [-1.0, 0.52], // positive X --> left-to-right flow; tweak sign if needed
+            driftSpeed: 0.058,
+            wobbleFreq: 0.02,
+            wobbleMag: 0.12,
+            dissolveScale: 3.8,
+            dissolveSpeed: 0.03,
+            dissolveWidth: 0.11
+          }}
+        />
+      </e.group>
+
+      <e.group theatreKey='Fish' position={[0, 0, 1]}>
+        <Fish scale={100} />
+      </e.group>
+
+      {/* <PathFishAuto speed={2.5} fishScale={0.05} showPath /> */}
+
+      <e.group theatreKey='Seashell' position={[0, 0, 1]}>
+        <Seashell scale={10} />
+      </e.group>
 
       <ambientLight intensity={0.55} />
       <directionalLight intensity={0.6} />
@@ -147,19 +202,6 @@ function Scene () {
       </e.mesh>
 
       <group>
-        {/* <e.mesh
-          rotation={[0, 0, Math.PI / 4]}
-          theatreKey='ShaderSingleBeam_B'
-          position={[150, -20, 5]}
-        >
-          <ShaderSingleBeam
-            position={[0, -300, -400]}
-            rotation={[THREE.MathUtils.degToRad(-6), 0, 2.5]}
-            seedOffset={0}
-          />
-        </e.mesh> */}
-
-        {/* third one if you want */}
         <e.mesh
           rotation={[0, 0, Math.PI / 4]}
           theatreKey='ShaderSingleBeam_C'
@@ -182,15 +224,8 @@ function Scene () {
         bottomColor='#2E264C'
       />
 
-      <e.group theatreKey='RockStone' position={[0, 0, -1]}>
-        <RockStone scale={30} />
-      </e.group>
-      <e.group theatreKey='Product' position={[0, 0, -1]}>
-        <Product scale={30} />
-      </e.group>
-
       <HalfDomeRimGlow
-        radius={4500}
+        radius={3500}
         edgeColor='#f2f0ff'
         midBlue='#f2f0ff'
         deepBlue='#322768'
@@ -204,23 +239,30 @@ function Scene () {
         raysSharpness={2.0}
         noiseAmount={0.25}
       />
+ 
+
+    {/* <e.mesh theatreKey='GlowRingWithBloom' position={[0, 0, -1]}>
+     <GlowRingWithBloom radius={1000} width={80} color="#ffcc99" useBloom={true}
+        bloomStrength={1.2} bloomRadius={1.0} bloomThreshold={0.05}
+      />
+       </e.mesh> */}
 
       <e.mesh theatreKey='Image' position={[0, 0, -1]}>
         <ImagePlane url='./sky.png' position={[0, 0, -5]} />
       </e.mesh>
 
       {/* ///////////////  front -frnt front  - front- ///////////////// */}
-      
-       <e.group theatreKey='Cloud-front-of-camera' position={[0, 0, 1]}>
+
+      <e.group theatreKey='Cloud-front-of-camera' position={[0, 0, 1]}>
         <CloudFloating
-          numPlanes={10}
-          opacity={0.15}
-          color1='#8d8093'
-          color2='#8d8093'
-          speed={0.9}
-          xSpread = {200} 
-          ySpread = {70} 
-          zSpread = {10} 
+          numPlanes={3}
+          opacity={0.22}
+          color1='#ffffff'
+          color2='#a292aa'
+          speed={0.7}
+          xSpread = {20}
+          ySpread = {5}
+          zSpread = {20}
           sharedNoise={{
             worldScale: 0.0098,
             warpAmt: 0.55,
@@ -241,11 +283,11 @@ function Scene () {
         <CloudFloating
           numPlanes={40}
           opacity={0.50}
-          color1='#8d8093'
-          color2='#ffffff'
-          speed={0.8}
+          color1='#ffffff'
+          color2='#8d8093'
+          speed={1.0}
           sharedNoise={{
-            worldScale: 0.50,
+            worldScale: 0.10,
             warpAmt: 0.25,
             ridgePower: 0.82,
             ridgeMix: 0.95,
@@ -260,7 +302,7 @@ function Scene () {
         />
       </e.group>   
 
-      {/* ///////////////  back - back - back - back- back - back ///////////////// */}
+      ///////////////  back - back - back - back- back - back /////////////////
 
       <e.group theatreKey='Cloud-Back' position={[0, 0, 1]}>        
 
@@ -269,9 +311,9 @@ function Scene () {
           opacity={0.15}
           color1='#ffffff'
           color2='#1004b9'
-          speed={0.8}
+          speed={1.0}
           sharedNoise={{
-            worldScale: 10.0098,
+            worldScale: 0.0098,
             warpAmt: 0.55,
             ridgePower: 1.2,
             ridgeMix: 5.95,
@@ -284,52 +326,66 @@ function Scene () {
             dissolveWidth: 0.11
           }}
         />
-      </e.group>
+      </e.group>  
 
-    
+      {/* 
 
-    <e.group theatreKey='Cloud-bottom' position={[0, 0, 1]}>        
+<e.group theatreKey='CloudFloatingInstanced' position={[0, 0, 1]}>        
 
-        <CloudFloating
-          numPlanes={25}
-          opacity={0.45}
-          color1='#fb0404'
-          color2='#e43e07'
-           xSpread = {500} 
-          ySpread = {60} 
-          zSpread = {60} 
-          speed={0}
+        <CloudFloatingInstanced
+          numPlanes={40}
+          opacity={0.50}
+          color1='#8d8093'
+          color2='#ffffff'
+          speed={1.0}
+           xSpread = {700}
+          ySpread = {70}
+          zSpread = {100}
+          baseScale = {100}
           sharedNoise={{
-            worldScale: 10.0098,
-            warpAmt: 0.55,
-            ridgePower: 1.2,
-            ridgeMix: 5.95,
-            dir: [-1.0, 0.52], // positive X --> left-to-right flow; tweak sign if needed
-            driftSpeed: 0.058,
-            wobbleFreq: 0.02,
-            wobbleMag: 0.12,
+            worldScale: 0.10,
+            warpAmt: 0.25,
+            ridgePower: 0.82,
+            ridgeMix: 0.45,
+            dir: [-1.0, -0.3], // positive X --> left-to-right flow; tweak sign if needed
+            driftSpeed: 0.018,
+            wobbleFreq: 0.01,
+            wobbleMag: 0.02,
             dissolveScale: 3.8,
             dissolveSpeed: 0.03,
             dissolveWidth: 0.11
           }}
         />
-      </e.group>
+      </e.group>   */}
 
 
-
-      <e.group theatreKey='Fish' position={[0, 0, 1]}>
-        <Fish scale={100} />
-      </e.group>
-
-      {/* <PathFishAuto speed={2.5} fishScale={0.05} showPath /> */}
-
-      <e.group theatreKey='Seashell' position={[0, 0, 1]}>
-        <Seashell scale={10} />
-      </e.group>
+       {/* <e.group theatreKey='Cloud-bottom' position={[0, 0, 1]}>
+              <CloudFloating
+                numPlanes={25}
+                opacity={0.45}
+                color1='#fb0404'
+                color2='#e43e07'
+                xSpread={500}
+                ySpread={60}
+                zSpread={60}
+                speed={0}
+                sharedNoise={{
+                  worldScale: 0.0098,
+                  warpAmt: 0.55,
+                  ridgePower: 1.2,
+                  ridgeMix: 5.95,
+                  dir: [-1.0, 0.52],
+                  driftSpeed: 0.058,
+                  wobbleFreq: 0.02,
+                  wobbleMag: 0.12,
+                  dissolveScale: 3.8,
+                  dissolveSpeed: 0.03,
+                  dissolveWidth: 0.11
+                }}
+              />
+            </e.group> */}
 
       {/* Lower volumetric box you pass through before entering water */}
-
-      
     </>
   )
 }

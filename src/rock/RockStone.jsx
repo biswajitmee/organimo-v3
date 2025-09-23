@@ -16,8 +16,8 @@ import * as THREE from 'three'
   // Create a standard material with the texture
   const rockMaterial = new THREE.MeshStandardMaterial({
     map: rockTex,
-    roughness: 0.9,
-    metalness: 0.0,
+    roughness: 0.5,
+    metalness: 0.2,
   })
   
   
