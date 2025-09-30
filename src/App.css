@@ -802,3 +802,12 @@ body::-webkit-scrollbar{
 }
 
  
+
+
+ /* শুধু Leva root/panel এর width একটু বাড়ানো */
+.leva__root,
+.leva__panel,
+.leva-c-kWgxhW {
+  width: 450px!important;
+}
+
