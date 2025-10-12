@@ -24,7 +24,7 @@ export default function SpringPath({
   turns = 0.95,
   coilRadius = 5.0,
   height = 10,
-  scale = 5,
+  scale = 2,
   brick = { width: 3, height: 2, depth: 8 },
   radialOffset = 0.0,
   texturePath = '/textures/brick-texture.jpg',

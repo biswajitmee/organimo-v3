@@ -6,7 +6,7 @@ export function ConchShell(props) {
 
   return (
     <Float
-      speed={5}                // how fast it floats/rotates
+      speed={1}                // how fast it floats/rotates
       rotationIntensity={0.1}  // how much rotation wiggles
       floatIntensity={0.7}     // how much it floats up/down
       floatingRange={[-2, 2]} // y-range in world units

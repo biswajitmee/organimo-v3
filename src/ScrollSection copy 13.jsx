@@ -1,12 +1,13 @@
 // src/ScrollSection.jsx
 import * as THREE from 'three'
-import React, { useRef, useMemo, Suspense, useEffect, useState } from 'react'
+import React, { useRef, useMemo, Suspense, useEffect } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { ScrollControls, useScroll, Scroll, Float } from '@react-three/drei'
-import { HemisphereLight, DirectionalLight } from 'three'
+import { HemisphereLight, DirectionalLight } from 'three' // clarity import
 
 import { useControls } from 'leva'
-import { getProject, val } from '@theatre/core'
+
+import { getProject } from '@theatre/core'
 import theatreeBBState from './theatreState.json'
 import {
   editable as e,
@@ -19,7 +20,7 @@ import studio from '@theatre/studio'
 import extension from '@theatre/r3f/dist/extension'
 studio.initialize()
 studio.extend(extension)
-import { Product } from './component/Product.jsx'
+
 import WaterScene from './component/WaterScene'
 import UnderwaterFog from './component/underwater/UnderwaterFog'
 import SpringPath from './SpringPath'
@@ -39,19 +40,9 @@ import { L3stone } from './rock/l3-stone.jsx'
 import { R1stone } from './rock/r1-stone.jsx'
 import { Pillarstone } from './rock/Pillarstone.jsx'
 
-import ImagePlane from './ImagePlane.jsx'
-import CloudeGradiantShader from './component/CloudeGradiantShader.jsx'
-
-/* ---------------- Config ---------------- */
 const PAGES = 8.5
 const SPHERE_RADIUS = 0.07
 
-// override window: start at 5s, resume theatre at 30s (you had changed AUTOSTART earlier)
-const AUTOSTART_SEC = 7
-const AUTOEND_SEC = 30
-const BLEND_MS = 300
-
-/* ---------------- HelixCurve (needed by Scene) ---------------- */
 class HelixCurve extends THREE.Curve {
   constructor ({ turns = 1, radius = 1, height = 1 } = {}) {
     super()
@@ -68,20 +59,33 @@ class HelixCurve extends THREE.Curve {
   }
 }
 
-/* ---------------- Responsive helpers ---------------- */
+/* ------------------ Responsive helpers ------------------ */
+
 function computeScaleForWidth (width) {
   if (!width) return 1
+  // তুমি এখানে মান পরিবর্তন করে নিজের টাচ দেবো
   if (width <= 380) return 0.6
   if (width <= 480) return 0.7
   if (width <= 768) return 0.85
   return 1
 }
+
+/**
+ * useResponsiveSetup
+ * - wrapperRef: ref to a <group> whose scale we set directly
+ * - cameraRef: ref to PerspectiveCamera to adjust fov and small positional nudge
+ * This avoids relying solely on JSX props and ensures immediate effect.
+ */
 function useResponsiveSetup ({ wrapperRef, cameraRef }) {
   const { size } = useThree()
+
   useEffect(() => {
     if (!wrapperRef || !wrapperRef.current) return
     const s = computeScaleForWidth(size.width)
+    // apply scale directly
     wrapperRef.current.scale.set(s, s, s)
+
+    // camera compensation
     if (cameraRef && cameraRef.current) {
       const cam = cameraRef.current
       const baseFov = 35
@@ -90,51 +94,31 @@ function useResponsiveSetup ({ wrapperRef, cameraRef }) {
       else if (size.width <= 480) targetFov = 70
       else if (size.width <= 768) targetFov = 38
       else targetFov = baseFov
+
       cam.fov = targetFov
       cam.updateProjectionMatrix()
+
+      // gentle positional nudge so perceived distance feels similar after scaling
       try {
         const origPos = cam.position.clone()
         const radial = new THREE.Vector3(origPos.x, 0, origPos.z)
         const len = radial.length()
         if (len > 0.001) {
-          const comp = 1 / Math.max(0.4, s)
-          const newLen = THREE.MathUtils.lerp(len, len * comp, 0.25)
+          const comp = 1 / Math.max(0.4, s) // clamp to avoid huge jumps
+          const newLen = THREE.MathUtils.lerp(len, len * comp, 0.25) // only 25% toward full compensation
           radial.setLength(newLen)
           cam.position.x = radial.x
           cam.position.z = radial.z
         }
-      } catch (e) {}
+      } catch (e) {
+        // ignore safety fallback
+      }
     }
   }, [size.width, wrapperRef, cameraRef])
 }
 
-/* ---------------- camera blend helper ---------------- */
-function smoothBlendCamera (
-  cameraRef,
-  targetPos,
-  targetQuat,
-  duration = BLEND_MS
-) {
-  if (!cameraRef?.current) return () => {}
-  const startPos = cameraRef.current.position.clone()
-  const startQuat = cameraRef.current.quaternion.clone()
-  const startTime = performance.now()
-  let cancelled = false
-  function step () {
-    if (cancelled || !cameraRef.current) return
-    const now = performance.now()
-    const t = Math.min(1, (now - startTime) / duration)
-    cameraRef.current.position.lerpVectors(startPos, targetPos, t)
-    cameraRef.current.quaternion.slerpQuaternions(startQuat, targetQuat, t)
-    if (t < 1) requestAnimationFrame(step)
-  }
-  requestAnimationFrame(step)
-  return () => {
-    cancelled = true
-  }
-}
+/* ------------------ Main component ------------------ */
 
-/* ---------------- Main component ---------------- */
 export default function ScrollSection () {
   const project = getProject('myProject', { state: theatreeBBState })
   const sheet = project.sheet('Scene')
@@ -170,7 +154,7 @@ export default function ScrollSection () {
           />
         </Suspense>
 
-        <ScrollControls pages={pages} distance={3} damping={0.5}>
+        <ScrollControls pages={pages} distance={3} damping={0.02}>
           <SheetProvider sheet={sheet}>
             <Scene />
           </SheetProvider>
@@ -181,19 +165,20 @@ export default function ScrollSection () {
   )
 }
 
-/* ---------------- Scene (inside Canvas) ---------------- */
+/* Scene */
 function Scene () {
   const sheet = useCurrentSheet()
   const scroll = useScroll()
-  const { set } = useThree()
 
   const cameraRef = useRef()
   const springGroupRef = useRef()
   const sphereRef = useRef()
   const wrapperRef = useRef()
 
+  // enable responsive behavior (applies scale on wrapperRef and camera compensation)
   useResponsiveSetup({ wrapperRef, cameraRef })
 
+  // controls (same as before)
   const {
     turns,
     coilRadius,
@@ -208,40 +193,47 @@ function Scene () {
     cameraSideOffset,
     cameraUpOffset,
     yOffsetDeg,
-    xOffsetDeg,
-    zOffsetDeg,
+    xOffsetDeg, // optional static X offset
     positionSmoothing,
     rotationSmoothing,
     showDebugMarker,
 
+    // bricks-rise
     hiddenDepth,
     activationRange,
     riseSpeed,
 
+    // camera-driven wave
     activeRadius,
     activeFade,
     downAmplitude,
     frontHold,
 
+    // curvature
     curvatureEnabled,
     curvatureStrength,
     curvatureRange,
     curvatureFalloff,
 
+    // floating
     floatEnabled,
     floatSpeed,
     rotationIntensity,
     floatIntensity,
     floatingRange,
 
+    // smooth scroll tuning (camera smoothing)
     scrollResponsiveness,
     startupBias,
     maxStep,
 
+    // rise smoothing for bricks (makes bricks respond faster/slower)
     riseSmoothing,
 
+    // camera pitch clamp (degrees)
     maxPitchDeg,
 
+    // camera safety clamps
     minCameraDistance,
     minCamY,
     maxCamY,
@@ -264,39 +256,46 @@ function Scene () {
     cameraUpOffset: { value: 5.0, min: -20, max: 50, step: 0.01 },
     yOffsetDeg: { value: -75, min: -180, max: 180, step: 0.1 },
     xOffsetDeg: { value: -8, min: -180, max: 180, step: 0.1 },
-    zOffsetDeg: { value: 0, min: -180, max: 180, step: 0.1 }, // <-- NEW zOffsetDeg
     positionSmoothing: { value: 0.38, min: 0, max: 1, step: 0.01 },
     rotationSmoothing: { value: 0.2, min: 0, max: 1, step: 0.005 },
     showDebugMarker: { value: true },
 
+    // bricks-rise
     hiddenDepth: { value: 70, min: 0, max: 400, step: 1 },
     activationRange: { value: 60, min: 1, max: 400, step: 0.5 },
     riseSpeed: { value: 10, min: 0.1, max: 30, step: 0.1 },
 
+    // camera-driven wave
     activeRadius: { value: 4, min: 0, max: 80, step: 1 },
     activeFade: { value: 3, min: 0, max: 80, step: 0.5 },
     downAmplitude: { value: 20.0, min: 0, max: 80, step: 0.1 },
     frontHold: { value: 1, min: 0, max: 40, step: 1 },
 
+    // curvature
     curvatureEnabled: { value: true },
     curvatureStrength: { value: 2.0, min: -40, max: 40, step: 0.1 },
     curvatureRange: { value: 0, min: 0, max: 120, step: 1 },
     curvatureFalloff: { value: 0, min: 0.1, max: 80, step: 0.5 },
 
+    // floating
     floatEnabled: { value: true },
     floatSpeed: { value: 1.0, min: 0.0, max: 8, step: 0.01 },
     rotationIntensity: { value: 0.6, min: 0, max: 6, step: 0.01 },
     floatIntensity: { value: 1.0, min: 0, max: 8, step: 0.01 },
     floatingRange: { value: [-0.2, 0.2] },
 
+    // smooth scroll tuning (camera smoothing)
     scrollResponsiveness: { value: 0.45, min: 0.01, max: 1.5, step: 0.01 },
     startupBias: { value: 0.9, min: 0, max: 1.0, step: 0.01 },
     maxStep: { value: 0.12, min: 0.001, max: 1.0, step: 0.001 },
 
+    // rise smoothing for bricks (0..1, higher = faster follow; set higher if you want very snappy bricks)
     riseSmoothing: { value: 0.6, min: 0.01, max: 1.0, step: 0.01 },
 
+    // camera pitch clamp (degrees)
     maxPitchDeg: { value: 60, min: 0, max: 90, step: 1 },
 
+    // camera safety clamps
     minCameraDistance: { value: 8, min: 1, max: 200, step: 1 },
     minCamY: { value: -5, min: -200, max: 200, step: 1 },
     maxCamY: { value: 50, min: -200, max: 200, step: 1 },
@@ -317,146 +316,24 @@ function Scene () {
 
   const activeIndexRef = useRef(0)
   const bricksActiveRef = useRef(0)
+
   const smoothedIndexRef = useRef(0)
   const lastRawRef = useRef(0)
 
-  // override state tracking
-  const [isOverriding, setIsOverriding] = useState(false)
-  const prevOverrideRef = useRef(false)
-  const blendCancelRef = useRef(null)
-
-  // map scroll -> theatre timeline (keeps theatre in sync)
-  useFrame(() => {
-    if (!sheet || !scroll) return
-    const sequenceLength = Math.max(
-      1,
-      Number(val(sheet.sequence.pointer.length) || 1)
-    )
-    sheet.sequence.position = scroll.offset * sequenceLength
-  })
-
-  // detect override window
-  useFrame(() => {
-    if (!sheet) return
-    const rawPos = Number(sheet.sequence.position || 0)
-    let fps = 60
-    try {
-      const ptr = sheet.sequence && sheet.sequence.pointer
-      if (ptr) {
-        if (typeof ptr.fps === 'number' && ptr.fps > 0) fps = ptr.fps
-        else if (typeof ptr.frameRate === 'number' && ptr.frameRate > 0)
-          fps = ptr.frameRate
-      }
-    } catch (e) {}
-    const seqPosSeconds = rawPos > 100 ? rawPos / fps : rawPos
-    const shouldOverride =
-      seqPosSeconds >= AUTOSTART_SEC && seqPosSeconds < AUTOEND_SEC
-
-    if (shouldOverride !== prevOverrideRef.current) {
-      if (shouldOverride) {
-        // ENTER override
-        console.log(
-          `[OVERRIDE] ENTER at ${seqPosSeconds.toFixed(
-            3
-          )} s -> PAUSING theatre and activating springPath camera.`
-        )
-        try {
-          sheet.sequence.pause()
-        } catch (e) {}
-        // snap camera to path transform immediately so we don't jump
-        try {
-          const rawOffset = THREE.MathUtils.clamp(scroll.offset, 0, 1)
-          const t = startAt === 'top' ? 1 - rawOffset : rawOffset
-          const count = Math.max(1, Math.floor(brickCount))
-          const approxIdx = Math.floor(t * count)
-          const brickIndex = THREE.MathUtils.clamp(approxIdx, 0, count - 1)
-          const brickT = (brickIndex + 0.5) / count
-          const localPoint = curve
-            .getPointAt(brickT)
-            .clone()
-            .multiplyScalar(pathScale)
-          const radial = new THREE.Vector3(
-            localPoint.x,
-            0,
-            localPoint.z
-          ).normalize()
-          if (!isFinite(radial.x) || radial.lengthSq() < 1e-6)
-            radial.set(1, 0, 0)
-          const outwardDist = (brickSpec.depth / 2 + radialOffset) * pathScale
-          const outward = radial.clone().multiplyScalar(outwardDist)
-          const brickLocalPos = new THREE.Vector3(
-            localPoint.x + outward.x,
-            localPoint.y,
-            localPoint.z + outward.z
-          )
-          const groupMat = ensureMatrixWorld()
-          const worldPos = brickLocalPos.clone().applyMatrix4(groupMat)
-          const aheadT = Math.min(1, brickT + 0.02)
-          const aheadPoint = curve
-            .getPointAt(aheadT)
-            .clone()
-            .multiplyScalar(pathScale)
-            .applyMatrix4(groupMat)
-          if (cameraRef && cameraRef.current) {
-            cameraRef.current.position.copy(worldPos)
-            cameraRef.current.lookAt(aheadPoint)
-            cameraRef.current.updateMatrixWorld()
-          }
-        } catch (e) {
-          console.warn('[OVERRIDE] snap failed', e)
-        }
-        // ensure renderer uses our camera instance on the next frame
-        requestAnimationFrame(() => {
-          try {
-            set({ camera: cameraRef.current })
-          } catch (e) {
-            /* ignore */
-          }
-        })
-      } else {
-        // EXIT override
-        console.log(
-          `[OVERRIDE] EXIT at ${seqPosSeconds.toFixed(
-            3
-          )} s -> RESUMING theatre and restoring theatre camera.`
-        )
-        try {
-          sheet.sequence.play()
-        } catch (e) {
-          /* ignore */
-        }
-        // blend to a reasonable fallback (theatre will take over)
-        const fallbackPos = cameraRef.current
-          ? cameraRef.current.position.clone()
-          : new THREE.Vector3(0, 2, 10)
-        const fallbackQuat = cameraRef.current
-          ? cameraRef.current.quaternion.clone()
-          : new THREE.Quaternion()
-        if (blendCancelRef.current) blendCancelRef.current()
-        blendCancelRef.current = smoothBlendCamera(
-          cameraRef,
-          fallbackPos,
-          fallbackQuat,
-          Math.min(BLEND_MS, 400)
-        )
-      }
-      prevOverrideRef.current = shouldOverride
-      setIsOverriding(shouldOverride)
-    }
-  })
-
-  // main camera/bricks logic (runs every frame)
   useFrame((state, delta) => {
     if (!scroll || !cameraRef.current || !springGroupRef.current) return
+
     const rawOffset = THREE.MathUtils.clamp(scroll.offset, 0, 1)
     const t = startAt === 'top' ? 1 - rawOffset : rawOffset
 
     const count = Math.max(1, Math.floor(brickCount))
     const targetIndexF = t * count
 
+    // BRICKS immediate index
     bricksActiveRef.current = targetIndexF
     activeIndexRef.current = bricksActiveRef.current
 
+    // CAMERA smoothing
     const cur = smoothedIndexRef.current || 0
     let diff = targetIndexF - cur
     const absDiff = Math.abs(diff)
@@ -553,12 +430,12 @@ function Scene () {
       camEuler.y += Math.PI
     camEuler.y += THREE.MathUtils.degToRad(yOffsetDeg)
     camEuler.x += THREE.MathUtils.degToRad(xOffsetDeg || 0)
-    camEuler.z += THREE.MathUtils.degToRad(zOffsetDeg || 0) // <-- APPLY zOffsetDeg
 
     const maxPitchRad = THREE.MathUtils.degToRad(
       Math.max(0, Math.min(90, maxPitchDeg || 90))
     )
     camEuler.x = THREE.MathUtils.clamp(camEuler.x, -maxPitchRad, maxPitchRad)
+
     const camFinalQuat = new THREE.Quaternion().setFromEuler(camEuler)
 
     if (camDesiredWorld.y < minCamY) camDesiredWorld.y = minCamY
@@ -575,40 +452,31 @@ function Scene () {
       camDesiredWorld.copy(brickWorldPos).add(dir.multiplyScalar(minDist))
     }
 
-    if (isOverriding && cameraRef.current) {
-      const desiredDelta = camDesiredWorld
-        .clone()
-        .sub(cameraRef.current.position)
-      const maxMove = Math.max(
-        0.0001,
-        minDist * (state.clock.delta * 60) * (maxMovePerFrameFactor || 1)
+    const desiredDelta = camDesiredWorld.clone().sub(cameraRef.current.position)
+    const maxMove = Math.max(
+      0.0001,
+      minDist * (state.clock.delta * 60) * (maxMovePerFrameFactor || 1)
+    )
+    if (desiredDelta.length() > maxMove) {
+      cameraRef.current.position.add(
+        desiredDelta.normalize().multiplyScalar(maxMove)
       )
-      if (desiredDelta.length() > maxMove) {
-        cameraRef.current.position.add(
-          desiredDelta.normalize().multiplyScalar(maxMove)
-        )
-      } else {
-        const posSmooth = THREE.MathUtils.clamp(
-          1 - Math.exp(-positionSmoothing * 10 * delta),
-          0,
-          1
-        )
-        cameraRef.current.position.lerp(camDesiredWorld, posSmooth)
-      }
-      const rotSmooth = THREE.MathUtils.clamp(
-        1 - Math.exp(-rotationSmoothing * 20 * delta),
+    } else {
+      const posSmooth = THREE.MathUtils.clamp(
+        1 - Math.exp(-positionSmoothing * 10 * delta),
         0,
         1
       )
-      cameraRef.current.quaternion.slerp(camFinalQuat, rotSmooth)
-      cameraRef.current.updateMatrixWorld()
-
-      // Debug log for active springPath camera — helpful for tracing during runtime
-      const dbgOffset = scroll.offset.toFixed(3)
-      console.log(
-        `[ACTIVE PATH] springPath camera active — scroll.offset= ${dbgOffset} brickIndex ~ ${brickIndex}`
-      )
+      cameraRef.current.position.lerp(camDesiredWorld, posSmooth)
     }
+
+    const rotSmooth = THREE.MathUtils.clamp(
+      1 - Math.exp(-rotationSmoothing * 20 * delta),
+      0,
+      1
+    )
+    cameraRef.current.quaternion.slerp(camFinalQuat, rotSmooth)
+    cameraRef.current.updateMatrixWorld()
 
     if (sphereRef.current) {
       sphereRef.current.visible = showDebugMarker
@@ -620,28 +488,16 @@ function Scene () {
 
   return (
     <>
-      {/* Camera swap: if overriding -> plain r3f perspectiveCamera (non-theatre),
-          else -> theatre-controlled PerspectiveCamera (theatreKey='Camera') */}
-      {isOverriding ? (
-        <perspectiveCamera
-          ref={cameraRef}
-          makeDefault
-          near={0.1}
-          far={5000}
-          fov={45}
-          position={[0, 2, 10]}
-        />
-      ) : (
-        <PerspectiveCamera
-          ref={cameraRef}
-          theatreKey='Camera'
-          makeDefault
-          near={0.1}
-          far={5000}
-          fov={35}
-        />
-      )}
+      <PerspectiveCamera
+        ref={cameraRef}
+        theatreKey='Camera'
+        makeDefault
+        near={0.1}
+        far={5000}
+        fov={35}
+      />
 
+      {/* Wrapper group that gets scaled by useResponsiveSetup */}
       <group ref={wrapperRef}>
         <e.group
           theatreKey='SpringGroup'
@@ -692,11 +548,12 @@ function Scene () {
         </mesh>
 
         <hemisphereLight
-          args={['#cfe7ff', '#6b4f5f', 0.35]}
+          args={['#cfe7ff', '#6b4f5f', 0.35]} /* sky color, ground color, intensity */
           castShadow={false}
         />
+
         <directionalLight
-          position={[30, 40, 10]}
+          position={[30, 40, 10]} /* tilt it like sun */
           intensity={0.25}
           castShadow={true}
           shadow-mapSize-width={1024}
@@ -754,6 +611,7 @@ function Scene () {
         <e.group theatreKey='L3stone' position={[0, 0, -1]}>
           <L3stone />
         </e.group>
+
         <e.group theatreKey='R1stone' position={[0, 0, -1]}>
           <R1stone />
         </e.group>
@@ -769,96 +627,21 @@ function Scene () {
           </Float>
         </e.group>
 
-        <e.group theatreKey='Fish' position={[0, 0, 1]}>
-          <Fish scale={100} />
-        </e.group>
-        <e.group theatreKey='Seashell' position={[0, 0, 1]}>
-          <Seashell scale={20} />
-        </e.group>
-
-        <e.mesh theatreKey='Image' position={[0, 0, -1]}>
-          <ImagePlane url='./sky.png' position={[0, 0, -5]} />
-        </e.mesh>
-
-        {/* ///////////////  front -frnt front  - front- ///////////////// */}
-
-        <e.group theatreKey='Cloud-front-of-camera' position={[0, 0, 1]}>
-          <CloudFloating
-            numPlanes={10}
-            opacity={0.22}
-            color1='#ffffff'
-            color2='#a292aa'
-            speed={0.9}
-            sharedNoise={{
-              worldScale: 0.0098,
-              warpAmt: 0.55,
-              ridgePower: 1.2,
-              ridgeMix: 0.95,
-              dir: [-1.0, 0.09], // positive X --> left-to-right flow; tweak sign if needed
-              driftSpeed: 0.018,
-              wobbleFreq: 0.05,
-              wobbleMag: 0.12,
-              dissolveScale: 3.8,
-              dissolveSpeed: 0.03,
-              dissolveWidth: 0.11
-            }}
-          />
-        </e.group>
-
-        <e.group theatreKey='Cloud-front' position={[0, 0, 1]}>
-          <CloudFloating
-            numPlanes={40}
-            opacity={0.5}
-            color1='#8d8093'
-            color2='#ffffff'
-            speed={1.0}
-            sharedNoise={{
-              worldScale: 0.1,
-              warpAmt: 0.25,
-              ridgePower: 0.82,
-              ridgeMix: 0.95,
-              dir: [-1.0, -0.3], // positive X --> left-to-right flow; tweak sign if needed
-              driftSpeed: 0.018,
-              wobbleFreq: 0.01,
-              wobbleMag: 0.02,
-              dissolveScale: 3.8,
-              dissolveSpeed: 0.03,
-              dissolveWidth: 0.11
-            }}
-          />
-        </e.group>
-
-        <e.group theatreKey='Cloud-Back' position={[0, 0, 1]}>
-          <CloudFloating
-            numPlanes={25}
-            opacity={0.15}
-            color1='#ffffff'
-            color2='#1004b9'
-            speed={1.0}
-            sharedNoise={{
-              worldScale: 10.0098,
-              warpAmt: 0.55,
-              ridgePower: 1.2,
-              ridgeMix: 5.95,
-              dir: [-1.0, 0.52], // positive X --> left-to-right flow; tweak sign if needed
-              driftSpeed: 0.058,
-              wobbleFreq: 0.02,
-              wobbleMag: 0.12,
-              dissolveScale: 3.8,
-              dissolveSpeed: 0.03,
-              dissolveWidth: 0.11
-            }}
-          />
-        </e.group>
         <e.group theatreKey='RockStone' position={[0, 0, -1]}>
           <RockStone scale={30} />
         </e.group>
-        <e.group theatreKey='Product' position={[0, 0, -1]}>
-          <Product scale={28} />
+
+        <e.group theatreKey='CloudFront' position={[0, 0, 1]}>
+          <CloudFloating numPlanes={20} opacity={0.4} />
         </e.group>
 
-        <e.pointLight theatreKey='LightBlue' position={[0, 0, 1]} />
-        <e.pointLight theatreKey='LightBlue 2' position={[0, 0, 1]} />
+        <e.group theatreKey='Fish' position={[0, 0, 1]}>
+          <Fish scale={100} />
+        </e.group>
+
+        <e.group theatreKey='Seashell' position={[0, 0, 1]}>
+          <Seashell scale={20} />
+        </e.group>
       </group>
     </>
   )

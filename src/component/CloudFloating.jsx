@@ -10,8 +10,8 @@ function randVec2(baseX, baseY, mag = 0.12) {
 
 export default function CloudFloating({
   position = [0, 8, 0],
-  color1 = '#d6c2d9',
-  color2 = '#0c00b3',
+  color1 = '#ffffff',
+  color2 = '#f1f1f1',
   opacity = 0.20,
   speed = 0.9,
   numPlanes = 100,

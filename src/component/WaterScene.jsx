@@ -75,7 +75,7 @@ export default function WaterScene() {
 
   /* water */
   useEffect(() => {
-    const waterGeometry = new THREE.PlaneGeometry(200000, 200000, 1, 1)
+    const waterGeometry = new THREE.PlaneGeometry(15000, 15000, 1, 1)
     const normals = new THREE.TextureLoader().load(
       'https://threejs.org/examples/textures/waternormals.jpg',
       (tx) => {
@@ -165,7 +165,7 @@ export default function WaterScene() {
         />
       </mesh>
 
-      <Stats />
+    
     </>
   )
 }

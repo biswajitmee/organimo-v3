@@ -1,7 +1,4 @@
 
-
-
-
 // src/component/Brick.jsx
 import React, { useMemo } from "react";
 import * as THREE from "three";
@@ -25,7 +22,7 @@ import { useLoader } from "@react-three/fiber";
  *         topRepeat={[2,1]} sideRepeat={[1,1]} />
  */
 
-export default function BoxWithTexture({
+export default function Briks({
   texture = "/textures/brick-texture.jpg",
   width = 15.747,
   height = 2.552,
