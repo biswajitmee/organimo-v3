@@ -6,7 +6,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { ScrollControls, useScroll, Scroll, Float, Text, Html } from '@react-three/drei'
 
 import FixedHeroText from './component/FixedHeroText.jsx'
- 
+
 
 import { useControls, monitor } from 'leva'
 import { getProject, val } from '@theatre/core'
@@ -18,10 +18,10 @@ import {
   useCurrentSheet
 } from '@theatre/r3f'
 
-// import studio from '@theatre/studio'
-// import extension from '@theatre/r3f/dist/extension'
-// studio.initialize()
-// studio.extend(extension)
+import studio from '@theatre/studio'
+import extension from '@theatre/r3f/dist/extension'
+studio.initialize()
+studio.extend(extension)
 
 import WaterScene from './component/WaterScene'
 import UnderwaterFog from './component/underwater/UnderwaterFog'
@@ -47,8 +47,7 @@ import ImagePlane from './ImagePlane.jsx'
 import { gsap } from 'gsap'
 
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import ScrollOffsetBridge from './ScrollOffsetBridge.jsx'
-  
+ 
  
 gsap.registerPlugin(ScrollTrigger)
 
@@ -265,14 +264,14 @@ function CameraCopyOverlay ({ cameraRef }) {
         borderRadius: 8,
         fontFamily: 'monospace',
         fontSize: 12,
-        maxWidth: 400
+        maxWidth: 340
       }}
     >
       <div style={{ marginBottom: 6, fontWeight: 600 }}>
         Camera (copy for Theatre)
       </div>
       <div style={{ marginBottom: 6 }}>
-        <div style={{ color: '#9aaaaa' }}>Position (XYZ)</div>
+        <div style={{ color: '#9aa' }}>Position (XYZ)</div>
         <div>{pos}</div>
         <button style={{ marginTop: 6 }} onClick={() => copyToClipboard(pos)}>
           Copy Position
@@ -552,9 +551,6 @@ function ControlledFadeOverlay ({
 /* ---------------- Main component ---------------- */
 export default function ScrollSection () {
   const project = getProject('myProject', { state: theatreeBBState })
-
-  window.__THEATRE_PROJECT__ = project
-
   const sheet = project.sheet('Scene')
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
   const pages = isMobile ? 15 : PAGES
@@ -620,8 +616,7 @@ export default function ScrollSection () {
             blendMeters={9}
           />
         </Suspense>
- 
- 
+
         <ScrollControls pages={pages} distance={3} damping={0.35}>
           <SheetProvider sheet={sheet}>
             <Scene
@@ -634,8 +629,6 @@ export default function ScrollSection () {
                 fadeColor
               }}
             />
- 
-            <ScrollOffsetBridge/>
           </SheetProvider>
           <Scroll html style={{ position: 'absolute', width: '100vw' }}/>
           

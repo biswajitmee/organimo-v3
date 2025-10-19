@@ -1,7 +1,7 @@
 // src/SpringPath.jsx
 import React, { useMemo, useRef, useEffect } from 'react'
 import * as THREE from 'three'
-import { useLoader, useFrame, useThree } from '@react-three/fiber'
+import { useLoader, useFrame } from '@react-three/fiber'
 
 class HelixCurve extends THREE.Curve {
   constructor({ turns = 1, radius = 1, height = 1 } = {}) {
@@ -25,10 +25,10 @@ export default function SpringPath({
   coilRadius = 5.0,
   height = 10,
   scale = 5,
-  brick = { width: 2, height: 2, depth: 4 },
+  brick = { width: 2, height: 2, depth: 5 },
   radialOffset = 0.0,
   texturePath = '/textures/brick-texture.jpg',
-  noiseW = 228,
+  noiseW = 128,
   noiseH = 64,
   seed = 42,
   position = [0, 0, 0],
@@ -36,31 +36,34 @@ export default function SpringPath({
   showPath = true,
   pathColor = '#00ffff',
   pathSegments = 400,
-  startOffset = 0.0,
+  startOffset = 0.0, // NEW: shift along path (0..1, wraps)
 
-  activeIndexRef = { current: 0 },
+  // camera-driven props (these come from ScrollSection)
+  activeIndexRef = { current: 0 }, // fractional index from scroll (raw)
   activeRadius = 4,
   activeFade = 3,
   downAmplitude = 7.0,
   frontHold = 1,
 
+  // curvature
   curvatureEnabled = true,
   curvatureStrength = 2.0,
   curvatureRange = 6,
   curvatureFalloff = 3,
 
+  // floating
   floatEnabled = false,
   floatSpeed = 1.0,
   rotationIntensity = 0.6,
   floatIntensity = 1.0,
   floatingRange = [-0.2, 0.2],
 
+  // smoothing for Y animation (0..1, higher = faster follow)
   riseSmoothing = 0.12
 }) {
   const instRef = useRef()
-  const { scene } = useThree()
 
-  // load texture
+  // texture loader (Suspense in Canvas)
   let colorMap = null
   try {
     colorMap = useLoader(THREE.TextureLoader, texturePath)
@@ -71,7 +74,6 @@ export default function SpringPath({
     colorMap = null
   }
 
-  // small noise / bump texture (DataTexture)
   const noiseTex = useMemo(() => {
     const w = Math.max(8, Math.floor(noiseW))
     const h = Math.max(4, Math.floor(noiseH))
@@ -101,40 +103,32 @@ export default function SpringPath({
     return tex
   }, [noiseW, noiseH, seed])
 
-  // Use MeshPhysicalMaterial for glass-like look (tweak values as needed)
   const material = useMemo(() => {
-    const mat = new THREE.MeshPhysicalMaterial({
+    return new THREE.MeshStandardMaterial({
       map: colorMap || undefined,
       roughnessMap: noiseTex,
       bumpMap: noiseTex,
-      bumpScale: 0.22,
-      roughness: 0.06, // low roughness -> more glossy
-      metalness: 0.01,
-      color: new THREE.Color(0.95, 0.94, 0.95),
-      side: THREE.DoubleSide,
-      transparent: true,
-      transmission: 0.8, // glass-like transmission (WebGL2 recommended)
-      thickness: 0.9,
-      envMapIntensity: 0.9,
-      clearcoat: 0.15,
-      clearcoatRoughness: 0.08
+      bumpScale: 0.02,
+      roughness: 0.82,
+      metalness: 0.02,
+      color: new THREE.Color(0.93, 0.86, 0.88),
+      side: THREE.DoubleSide
     })
-    return mat
   }, [colorMap, noiseTex])
 
-  // base geometry
   const geometry = useMemo(() => {
     return new THREE.BoxGeometry(brick.width, brick.height, brick.depth, 6, 2, 2)
   }, [brick.width, brick.height, brick.depth])
 
   const curve = useMemo(() => new HelixCurve({ turns, radius: coilRadius, height }), [turns, coilRadius, height])
 
-  // base matrices storage
+  // base matrices + animated Y store
   const baseMatricesRef = useRef(null)
   const currentYsRef = useRef(null)
+  // per-instance metadata for floating/phase
   const baseMetaRef = useRef(null)
 
-  // live prop refs
+  // live prop refs (to avoid re-registering closures in useFrame)
   const activeRadiusRef = useRef(activeRadius)
   const activeFadeRef = useRef(activeFade)
   const downAmpRef = useRef(downAmplitude)
@@ -170,7 +164,7 @@ export default function SpringPath({
   // normalize startOffset into [0,1)
   const normalizedOffset = ((startOffset % 1) + 1) % 1
 
-  // Build base instance matrices once (or when inputs change)
+  // build base instance matrices and metadata once (or when inputs change)
   useEffect(() => {
     const mesh = instRef.current
     if (!mesh) return
@@ -186,6 +180,7 @@ export default function SpringPath({
     const currentYs = []
     const meta = []
 
+    // deterministic pseudo-random for per-instance phase values
     let s = seed
     const rand = () => {
       s = (s * 9301 + 49297) % 233280
@@ -193,6 +188,7 @@ export default function SpringPath({
     }
 
     for (let i = 0; i < count; i++) {
+      // apply startOffset: shift along path for every instance
       const tRaw = (i + 0.5) / count
       const t = (tRaw + normalizedOffset) % 1
 
@@ -226,8 +222,10 @@ export default function SpringPath({
       const mClone = tmpMat.clone()
       baseMats.push({ mat: mClone, pos: new THREE.Vector3().setFromMatrixPosition(mClone) })
 
+      // initialize currentY same as base pos.y
       currentYs.push(tmpPos.y)
 
+      // per-instance floating phases
       meta.push({
         floatPhase: rand() * Math.PI * 2,
         rotPhase: rand() * Math.PI * 2
@@ -241,71 +239,10 @@ export default function SpringPath({
     baseMetaRef.current = meta
 
     try { mesh.geometry.computeBoundingBox(); mesh.geometry.computeBoundingSphere() } catch (e) {}
-
-    // --------- Attach per-instance seed attribute and patch material shader ---------
-    // Create deterministic seeds and attach as InstancedBufferAttribute
-    try {
-      // seeds
-      let s2 = seed || 1337
-      const rand2 = () => { s2 = (s2 * 9301 + 49297) % 233280; return s2 / 233280 }
-      const seeds = new Float32Array(count)
-      for (let i = 0; i < count; i++) seeds[i] = rand2()
-
-      if (mesh.geometry && !mesh.geometry.getAttribute('instanceSeed')) {
-        const instAttr = new THREE.InstancedBufferAttribute(seeds, 1, false)
-        mesh.geometry.setAttribute('instanceSeed', instAttr)
-      }
-    } catch (e) {
-      // non-fatal
-      console.warn('[SpringPath] failed to set instanceSeed attr', e)
-    }
-
-    // Patch material shader (only once)
-    try {
-      if (material && !material.__patchedForInstanceNoise) {
-        material.onBeforeCompile = (shader) => {
-          // expose time
-          shader.uniforms.time = { value: 0.0 }
-
-          // add attribute/uniform declarations
-          shader.vertexShader = shader.vertexShader.replace(
-            'void main() {',
-            'attribute float instanceSeed;\nuniform float time;\nvoid main() {'
-          )
-
-          // Replace begin_vertex chunk with custom displacement (keeps rest intact)
-          shader.vertexShader = shader.vertexShader.replace(
-            '#include <begin_vertex>',
-            `
-            // custom per-instance organic displacement
-            vec3 transformed = vec3( position );
-            float seed = instanceSeed * 6.28318530718; // 0..2PI
-            float n1 = sin(seed + position.x * 2.6 + time * 0.8);
-            float n2 = sin(seed * 1.3 + position.y * 2.1 - time * 0.6);
-            float n3 = sin(seed * 0.7 + position.z * 3.8 + time * 0.35);
-            float noise = (n1 * 0.45 + n2 * 0.35 + n3 * 0.20);
-            // per-instance amplitude scaled by seed
-            float dispAmount = 0.05 * (0.5 + instanceSeed * 0.9); // tweak for stronger/weaker effect
-            transformed += normal * noise * dispAmount;
-            `
-          )
-
-          // store shader so we can update uniform in useFrame
-          material.userData._r3fShader = shader
-        }
-
-        material.__patchedForInstanceNoise = true
-        material.needsUpdate = true
-      }
-    } catch (e) {
-      console.warn('[SpringPath] shader patch failed', e)
-    }
-
-    // cleanup is not removing attribute to avoid thrashing — it's fine to keep
     return () => {}
   }, [count, curve, brick.depth, radialOffset, scale, position, geometry, material, seed, normalizedOffset])
 
-  // Per-frame animation: update instance matrices Y + curvature + floating
+  // per-frame animation: drive Y based on activeIndexRef (fractional)
   useFrame((state) => {
     const mesh = instRef.current
     const base = baseMatricesRef.current
@@ -326,7 +263,9 @@ export default function SpringPath({
     const tmpQuat = new THREE.Quaternion()
     const tmpScale = new THREE.Vector3(1, 1, 1)
 
-    const dt = Math.min(0.06, state.clock.delta) || (1 / 60)
+    // stable dt clamp
+    const dt = Math.min(0.06, state.clock.delta) || (1/60)
+    // per-frame lerp derived from riseSmoothing
     const perFrameLerp = 1 - Math.exp(- (Math.max(0.01, riseSmoothing) * 60) * dt)
 
     for (let i = 0; i < Math.min(base.length, mesh.count); i++) {
@@ -343,6 +282,7 @@ export default function SpringPath({
         distance = Math.abs(brickCenterIdx - actIdxF)
       }
 
+      // determine target Y: inside radius => base Y; outside => lowered by amp (interpolated by fade)
       let targetY
       if (distance <= radius) {
         targetY = basePos.y
@@ -352,14 +292,17 @@ export default function SpringPath({
         targetY = basePos.y - amp * factor
       }
 
+      // lerp currentY toward target using perFrameLerp
       const curY = currentYs[i] != null ? currentYs[i] : basePos.y
       const newY = THREE.MathUtils.lerp(curY, targetY, perFrameLerp)
       currentYs[i] = newY
       tmpPos.copy(basePos)
       tmpPos.y = newY
 
+      // start with base quaternion
       tmpQuat.setFromRotationMatrix(m)
 
+      // curvature: lateral offset & slight yaw
       if (curvatureEnabledRef.current) {
         let distanceForCurve
         if (brickCenterIdx > actIdxF) {
@@ -392,6 +335,7 @@ export default function SpringPath({
         }
       }
 
+      // floating: subtle time-based bob & rotation on top of target Y
       if (floatEnabledRef.current && meta && meta[i]) {
         const speed = floatSpeedRef.current || 1.0
         const fIntensity = floatIntensityRef.current || 1.0
@@ -418,18 +362,8 @@ export default function SpringPath({
     }
 
     mesh.instanceMatrix.needsUpdate = true
-
-    // update material shader time uniform for dynamic displacement
-    try {
-      if (material && material.userData && material.userData._r3fShader && material.userData._r3fShader.uniforms) {
-        material.userData._r3fShader.uniforms.time.value = state.clock.elapsedTime
-      }
-    } catch (e) {
-      // ignore
-    }
   })
 
-  // optional visual path: line
   const pathGeometry = useMemo(() => {
     if (!showPath) return null
     const pts = []
@@ -459,9 +393,7 @@ export default function SpringPath({
         material.dispose()
         if (colorMap && colorMap.dispose) colorMap.dispose()
         if (noiseTex && noiseTex.dispose) noiseTex.dispose()
-      } catch (e) {
-        // ignore
-      }
+      } catch (e) {}
     }
   }, []) // eslint-disable-line
 
@@ -470,7 +402,7 @@ export default function SpringPath({
       <instancedMesh ref={instRef} args={[geometry, material, Math.max(1, count)]} castShadow receiveShadow />
       {showPath && pathGeometry ? (
         <line geometry={pathGeometry}>
-          <lineBasicMaterial color={pathColor} linewidth={0} depthTest={true} />
+          <lineBasicMaterial color={pathColor} linewidth={2} depthTest={true} />
         </line>
       ) : null}
     </group>

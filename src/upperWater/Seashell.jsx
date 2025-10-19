@@ -6,7 +6,7 @@ import React, { useRef } from 'react'
 import { useGLTF } from '@react-three/drei'
 
 export function Seashell(props) {
-  const { nodes, materials } = useGLTF('../Seashell.glb')
+  const { nodes, materials } = useGLTF('/models/Seashell.glb')
   return (
     <group {...props} dispose={null}>
       <mesh
@@ -37,4 +37,4 @@ export function Seashell(props) {
   )
 }
 
-useGLTF.preload('../Seashell.glb')
+useGLTF.preload('/models/Seashell.glb')

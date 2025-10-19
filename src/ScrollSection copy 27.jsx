@@ -2,11 +2,7 @@
 import * as THREE from 'three'
 import React, { useRef, useMemo, Suspense, useEffect, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-// import { ScrollControls, useScroll, Scroll, Float, Text } from '@react-three/drei'
-import { ScrollControls, useScroll, Scroll, Float, Text, Html } from '@react-three/drei'
-
-import FixedHeroText from './component/FixedHeroText.jsx'
- 
+import { ScrollControls, useScroll, Scroll, Float } from '@react-three/drei'
 
 import { useControls, monitor } from 'leva'
 import { getProject, val } from '@theatre/core'
@@ -18,10 +14,10 @@ import {
   useCurrentSheet
 } from '@theatre/r3f'
 
-// import studio from '@theatre/studio'
-// import extension from '@theatre/r3f/dist/extension'
-// studio.initialize()
-// studio.extend(extension)
+import studio from '@theatre/studio'
+import extension from '@theatre/r3f/dist/extension'
+studio.initialize()
+studio.extend(extension)
 
 import WaterScene from './component/WaterScene'
 import UnderwaterFog from './component/underwater/UnderwaterFog'
@@ -44,21 +40,13 @@ import { Pillarstone } from './rock/Pillarstone.jsx'
 
 import ImagePlane from './ImagePlane.jsx'
 
-import { gsap } from 'gsap'
-
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import ScrollOffsetBridge from './ScrollOffsetBridge.jsx'
-  
- 
-gsap.registerPlugin(ScrollTrigger)
-
 /* ---------------- Config ---------------- */
-const PAGES = 14.5
+const PAGES = 8.5
 const SPHERE_RADIUS = 0.07
 
 // theatre override window (seconds)
 const AUTOSTART_SEC = 7
-const AUTOEND_SEC = 110
+const AUTOEND_SEC = 35
 
 // default timings (can be overridden via GUI)
 const DEFAULT_FADE_ENTER_MS = 40
@@ -157,42 +145,25 @@ function CameraDebugGUI ({ cameraRef, isOverriding }) {
   useControls(
     'Camera Debug',
     {
-      OverrideActive: monitor(() => (isOverriding ? 'YES' : 'no'), {
-        interval: 250
-      }),
-      PositionXYZ: monitor(
-        () => {
-          const c = cameraRef.current
-          if (!c) return '—'
-          const p = c.position
-          return `${p.x.toFixed(3)}, ${p.y.toFixed(3)}, ${p.z.toFixed(3)}`
-        },
-        { interval: 250 }
-      ),
-      RotationEulerDeg_YXZ: monitor(
-        () => {
-          const c = cameraRef.current
-          if (!c) return '—'
-          const e = new THREE.Euler().setFromQuaternion(c.quaternion, 'YXZ')
-          return `${THREE.MathUtils.radToDeg(e.x).toFixed(
-            1
-          )}, ${THREE.MathUtils.radToDeg(e.y).toFixed(
-            1
-          )}, ${THREE.MathUtils.radToDeg(e.z).toFixed(1)}`
-        },
-        { interval: 250 }
-      ),
-      Quaternion: monitor(
-        () => {
-          const c = cameraRef.current
-          if (!c) return '—'
-          const q = c.quaternion
-          return `${q.x.toFixed(4)}, ${q.y.toFixed(4)}, ${q.z.toFixed(
-            4
-          )}, ${q.w.toFixed(4)}`
-        },
-        { interval: 250 }
-      )
+      OverrideActive: monitor(() => (isOverriding ? 'YES' : 'no'), { interval: 250 }),
+      PositionXYZ: monitor(() => {
+        const c = cameraRef.current
+        if (!c) return '—'
+        const p = c.position
+        return `${p.x.toFixed(3)}, ${p.y.toFixed(3)}, ${p.z.toFixed(3)}`
+      }, { interval: 250 }),
+      RotationEulerDeg_YXZ: monitor(() => {
+        const c = cameraRef.current
+        if (!c) return '—'
+        const e = new THREE.Euler().setFromQuaternion(c.quaternion, 'YXZ')
+        return `${THREE.MathUtils.radToDeg(e.x).toFixed(1)}, ${THREE.MathUtils.radToDeg(e.y).toFixed(1)}, ${THREE.MathUtils.radToDeg(e.z).toFixed(1)}`
+      }, { interval: 250 }),
+      Quaternion: monitor(() => {
+        const c = cameraRef.current
+        if (!c) return '—'
+        const q = c.quaternion
+        return `${q.x.toFixed(4)}, ${q.y.toFixed(4)}, ${q.z.toFixed(4)}, ${q.w.toFixed(4)}`
+      }, { interval: 250 })
     },
     { collapsed: false }
   )
@@ -211,35 +182,19 @@ function CameraCopyOverlay ({ cameraRef }) {
       if (!mounted) return
       const c = cameraRef.current
       if (!c) {
-        setPos('—')
-        setEulerYXZ('—')
-        setQuat('—')
-        return
+        setPos('—'); setEulerYXZ('—'); setQuat('—'); return
       }
       const p = c.position
       setPos(`${p.x.toFixed(3)}, ${p.y.toFixed(3)}, ${p.z.toFixed(3)}`)
       const e = new THREE.Euler().setFromQuaternion(c.quaternion, 'YXZ')
-      setEulerYXZ(
-        `${THREE.MathUtils.radToDeg(e.x).toFixed(
-          3
-        )}, ${THREE.MathUtils.radToDeg(e.y).toFixed(
-          3
-        )}, ${THREE.MathUtils.radToDeg(e.z).toFixed(3)}`
-      )
+      setEulerYXZ(`${THREE.MathUtils.radToDeg(e.x).toFixed(3)}, ${THREE.MathUtils.radToDeg(e.y).toFixed(3)}, ${THREE.MathUtils.radToDeg(e.z).toFixed(3)}`)
       const q = c.quaternion
-      setQuat(
-        `${q.x.toFixed(6)}, ${q.y.toFixed(6)}, ${q.z.toFixed(6)}, ${q.w.toFixed(
-          6
-        )}`
-      )
+      setQuat(`${q.x.toFixed(6)}, ${q.y.toFixed(6)}, ${q.z.toFixed(6)}, ${q.w.toFixed(6)}`)
     }, 120)
-    return () => {
-      mounted = false
-      clearInterval(id)
-    }
+    return () => { mounted = false; clearInterval(id) }
   }, [cameraRef])
 
-  const copyToClipboard = text => {
+  const copyToClipboard = (text) => {
     try {
       navigator.clipboard.writeText(text)
     } catch (e) {
@@ -253,65 +208,47 @@ function CameraCopyOverlay ({ cameraRef }) {
   }
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        right: 18,
-        bottom: 18,
-        zIndex: 9999,
-        background: 'rgba(10,10,12,0.75)',
-        color: '#eee',
-        padding: '10px 12px',
-        borderRadius: 8,
-        fontFamily: 'monospace',
-        fontSize: 12,
-        maxWidth: 400
-      }}
-    >
-      <div style={{ marginBottom: 6, fontWeight: 600 }}>
-        Camera (copy for Theatre)
-      </div>
+    <div style={{
+      position: 'fixed',
+      right: 18,
+      bottom: 18,
+      zIndex: 9999,
+      background: 'rgba(10,10,12,0.75)',
+      color: '#eee',
+      padding: '10px 12px',
+      borderRadius: 8,
+      fontFamily: 'monospace',
+      fontSize: 12,
+      maxWidth: 340
+    }}>
+      <div style={{ marginBottom: 6, fontWeight: 600 }}>Camera (copy for Theatre)</div>
       <div style={{ marginBottom: 6 }}>
-        <div style={{ color: '#9aaaaa' }}>Position (XYZ)</div>
+        <div style={{ color: '#9aa' }}>Position (XYZ)</div>
         <div>{pos}</div>
-        <button style={{ marginTop: 6 }} onClick={() => copyToClipboard(pos)}>
-          Copy Position
-        </button>
+        <button style={{ marginTop: 6 }} onClick={() => copyToClipboard(pos)}>Copy Position</button>
       </div>
 
       <div style={{ marginTop: 8 }}>
         <div style={{ color: '#9aa' }}>Rotation (Euler YXZ in degrees)</div>
         <div>{eulerYXZ}</div>
-        <button
-          style={{ marginTop: 6 }}
-          onClick={() => copyToClipboard(eulerYXZ)}
-        >
-          Copy Euler (YXZ)
-        </button>
+        <button style={{ marginTop: 6 }} onClick={() => copyToClipboard(eulerYXZ)}>Copy Euler (YXZ)</button>
       </div>
 
       <div style={{ marginTop: 8 }}>
         <div style={{ color: '#9aa' }}>Quaternion (x, y, z, w)</div>
         <div style={{ wordBreak: 'break-all' }}>{quat}</div>
-        <button style={{ marginTop: 6 }} onClick={() => copyToClipboard(quat)}>
-          Copy Quaternion
-        </button>
+        <button style={{ marginTop: 6 }} onClick={() => copyToClipboard(quat)}>Copy Quaternion</button>
       </div>
 
       <div style={{ marginTop: 8, fontSize: 11, color: '#888' }}>
-        Tip: paste quaternion into Theatre if possible — it preserves rotation
-        exactly.
+        Tip: paste quaternion into Theatre if possible — it preserves rotation exactly.
       </div>
     </div>
   )
 }
 
 /* ---------------- Controlled fade overlay (reads controller) ---------------- */
-function ControlledFadeOverlay ({
-  color = '#050417',
-  exitDuration = DEFAULT_FADE_EXIT_MS,
-  holdMs = DEFAULT_FADE_HOLD_MS
-}) {
+function ControlledFadeOverlay ({ color = '#050417', exitDuration = DEFAULT_FADE_EXIT_MS, holdMs = DEFAULT_FADE_HOLD_MS }) {
   const [mode, setMode] = useState('hidden') // 'hidden' | 'entered' | 'exiting'
   useEffect(() => {
     let mounted = true
@@ -349,11 +286,7 @@ function ControlledFadeOverlay ({
     }
     const id = setInterval(checkController, 80)
     checkController()
-    return () => {
-      mounted = false
-      clearInterval(id)
-      clearTimeout(holdTimer)
-    }
+    return () => { mounted = false; clearInterval(id); clearTimeout(holdTimer) }
   }, [exitDuration, holdMs])
 
   if (mode === 'hidden') return null
@@ -378,7 +311,7 @@ function ControlledFadeOverlay ({
         opacity: 1,
         transition: `opacity ${exitDuration}ms cubic-bezier(.2,.0,.0,1)`
       }}
-      ref={el => {
+      ref={(el) => {
         if (!el) return
         requestAnimationFrame(() => {
           if (el) el.style.opacity = 0
@@ -388,198 +321,390 @@ function ControlledFadeOverlay ({
   )
 }
 
-/* ---------------- FixedText component (attached to camera, shows on theatre start) ---------------- */
-// function FixedText ({
-//   cameraRef,
-//   sheet, // pass theatre sheet to detect sequence position
-//   durationMs = 10000,
-//   fadeMs = 800,
-//   localOffset = new THREE.Vector3(0, -0.8, -4),
-//   text = 'Limitless begins here',
-//   fontSize = 0.45
-// }) {
-//   const meshRef = useRef()
-//   const materialRef = useRef()
-//   const [visible, setVisible] = useState(false)
-//   const hideTimeoutRef = useRef(null)
-//   const fadeRAFRef = useRef(null)
 
-//   // helper to read sequence position in seconds (robust like earlier logic)
-//   function getSequenceSeconds () {
-//     if (!sheet || !sheet.sequence) return null
+
+
+/* ---------------- Controlled fade overlay (reads controller) ---------------- */
+// function ControlledFadeOverlay ({
+//   color = '#050417',
+//   exitDuration = DEFAULT_FADE_EXIT_MS,
+//   holdMs = DEFAULT_FADE_HOLD_MS,
+//   cooldownMs = DEFAULT_FADE_COOLDOWN_MS
+// }) {
+//   const [mode, setMode] = useState('hidden') // 'hidden' | 'entered' | 'exiting'
+//   const lastTriggerRef = useRef(0)
+
+//   useEffect(() => {
+//     let mounted = true
+//     let holdTimer = null
+
+//     function checkController () {
+//       const ctrl = window._springFadeController
+//       if (!ctrl || !ctrl.sessionId) return
+
+//       const now = performance.now()
+//       const timeSinceLast = now - (lastTriggerRef.current || 0)
+//       const allowTrigger = timeSinceLast >= (cooldownMs || DEFAULT_FADE_COOLDOWN_MS)
+
+//       // ENTER
+//       if (ctrl.enter && !ctrl.entered && allowTrigger) {
+//         ctrl.entered = true
+//         ctrl.exited = false
+//         lastTriggerRef.current = now
+//         setMode('entered')
+
+//         if (holdMs > 0) {
+//           clearTimeout(holdTimer)
+//           holdTimer = setTimeout(() => {}, holdMs) // hold period before fade exit allowed
+//         }
+//       }
+
+//       // EXIT
+//       if (ctrl.exit && !ctrl.exited) {
+//         ctrl.exited = true
+//         lastTriggerRef.current = now
+//         setMode('exiting')
+//         setTimeout(() => {
+//           if (mounted) setMode('hidden')
+//         }, Math.max(40, exitDuration + 80))
+//       }
+//     }
+
+//     const id = setInterval(checkController, 60)
+//     checkController()
+//     return () => { mounted = false; clearInterval(id); clearTimeout(holdTimer) }
+//   }, [exitDuration, holdMs, cooldownMs])
+
+//   if (mode === 'hidden') return null
+//   const base = {
+//     pointerEvents: 'none',
+//     position: 'fixed',
+//     left: 0,
+//     top: 0,
+//     width: '100vw',
+//     height: '100vh',
+//     zIndex: 99999,
+//     background: color
+//   }
+
+//   if (mode === 'entered') return <div style={{ ...base, opacity: 1 }} />
+
+//   // exiting: smooth fade out
+//   return (
+//     <div
+//       style={{
+//         ...base,
+//         opacity: 1,
+//         transition: `opacity ${exitDuration}ms cubic-bezier(.2,.0,.0,1)`
+//       }}
+//       ref={(el) => {
+//         if (!el) return
+//         requestAnimationFrame(() => { if (el) el.style.opacity = 0 })
+//       }}
+//     />
+//   )
+// }
+
+/* ---------------- Controlled fade overlay (reads controller) ---------------- */
+// function ControlledFadeOverlay ({
+//   color = '#050417',
+//   exitDuration = DEFAULT_FADE_EXIT_MS,
+//   holdMs = DEFAULT_FADE_HOLD_MS,
+//   cooldownMs = DEFAULT_FADE_COOLDOWN_MS
+// }) {
+//   const [mode, setMode] = useState('hidden') // 'hidden' | 'entered' | 'exiting'
+//   const lastTriggerRef = useRef(0)
+
+//   // Try to read theatre sequence seconds from any global sheet references that Scene might expose.
+//   function getSeqSecondsFromGlobal () {
 //     try {
+//       const sheet = (typeof window !== 'undefined' && (window._springSheetRef || window._theatreSheet || window._sheet)) || null
+//       if (!sheet) return null
 //       const rawPos = Number(sheet.sequence.position || 0)
 //       let fps = 60
 //       const ptr = sheet.sequence && sheet.sequence.pointer
 //       if (ptr) {
 //         if (typeof ptr.fps === 'number' && ptr.fps > 0) fps = ptr.fps
-//         else if (typeof ptr.frameRate === 'number' && ptr.frameRate > 0)
-//           fps = ptr.frameRate
+//         else if (typeof ptr.frameRate === 'number' && ptr.frameRate > 0) fps = ptr.frameRate
 //       }
-//       const seqPosSeconds = rawPos > 100 ? rawPos / fps : rawPos
-//       return seqPosSeconds
+//       return rawPos > 100 ? rawPos / fps : rawPos
 //     } catch (e) {
 //       return null
 //     }
 //   }
 
-//   // attach/detach to camera once — parenting avoids per-frame jitter
 //   useEffect(() => {
-//     const cam = cameraRef && cameraRef.current
-//     const mesh = meshRef.current
-//     if (!cam || !mesh) return
-//     // if already parented elsewhere remove first
-//     if (mesh.parent && mesh.parent !== cam) mesh.parent.remove(mesh)
-//     // attach as child of camera
-//     cam.add(mesh)
-//     // set local transform
-//     mesh.position.copy(localOffset)
-//     mesh.quaternion.set(0, 0, 0, 1) // align with camera
-//     mesh.scale.set(1, 1, 1)
-//     // ensure render order / depth so it stays visible nicely
-//     // cleanup on unmount
-//     return () => {
-//       try {
-//         if (mesh.parent === cam) cam.remove(mesh)
-//       } catch (e) {}
-//     }
-//     // eslint-disable-next-line react-hooks/exhaustive-deps
-//   }, [cameraRef, localOffset])
+//     let mounted = true
+//     let holdTimer = null
 
-//   // visibility logic: show from theatre start for durationMs
-//   useEffect(() => {
-//     if (!sheet) return
-//     // clear previous timers / rafs
-//     if (hideTimeoutRef.current) {
-//       clearTimeout(hideTimeoutRef.current)
-//       hideTimeoutRef.current = null
-//     }
-//     if (fadeRAFRef.current) {
-//       cancelAnimationFrame(fadeRAFRef.current)
-//       fadeRAFRef.current = null
-//     }
+//     function checkController () {
+//       const ctrl = window._springFadeController
+//       if (!ctrl || !ctrl.sessionId) return
 
-//     const seqSeconds = getSequenceSeconds()
-//     // if we can read sequence and it's at start (or near start) we show
-//     // show when seq position is < durationMs/1000 (i.e., from start)
-//     if (seqSeconds !== null && seqSeconds >= 0 && seqSeconds < durationMs / 1000) {
-//       // show immediately and schedule fade after remaining time
-//       const remaining = Math.max(0, durationMs - seqSeconds * 1000)
-//       // set visible & full opacity
-//       setVisible(true)
-//       if (materialRef.current) materialRef.current.opacity = 1
-//       // schedule fade animation after remaining ms
-//       hideTimeoutRef.current = setTimeout(() => {
-//         const start = performance.now()
-//         function step (now) {
-//           const t = Math.min(1, (now - start) / Math.max(1, fadeMs))
-//           if (materialRef.current) materialRef.current.opacity = 1 - t
-//           if (t < 1) fadeRAFRef.current = requestAnimationFrame(step)
-//           else {
-//             setVisible(false)
-//             fadeRAFRef.current = null
+//       const now = performance.now()
+//       const timeSinceLast = now - (lastTriggerRef.current || 0)
+//       const allowTrigger = timeSinceLast >= (cooldownMs || DEFAULT_FADE_COOLDOWN_MS)
+
+//       const seqSecNow = getSeqSecondsFromGlobal() // may be null
+
+//       // ---------- ENTER logic ----------
+//       // Only honor enter if:
+//       //  - controller requests enter AND not already entered
+//       //  - cooldown ok
+//       //  - AND (we can read seq time AND seq within AUTOSTART..AUTOEND) OR seq time unknown (fallback -> allow)
+//       if (ctrl.enter && !ctrl.entered && allowTrigger) {
+//         const inWindow = seqSecNow === null ? true : (seqSecNow >= AUTOSTART_SEC && seqSecNow < AUTOEND_SEC)
+//         if (inWindow) {
+//           // normal enter: show overlay and mark entered
+//           ctrl.entered = true
+//           ctrl.exited = false
+//           lastTriggerRef.current = now
+//           setMode('entered')
+
+//           if (holdMs > 0) {
+//             clearTimeout(holdTimer)
+//             holdTimer = setTimeout(() => {
+//               // hold period; exit allowed after this or by explicit ctrl.exit
+//             }, holdMs)
 //           }
+//         } else {
+//           // We're outside the spring override window -> suppress any enter overlay.
+//           // Mark both entered+exited so overlay will not show for this session.
+//           ctrl.entered = true
+//           ctrl.exited = true
+//           window._springFadeController = ctrl
+//           // ensure overlay hidden
+//           setMode('hidden')
 //         }
-//         fadeRAFRef.current = requestAnimationFrame(step)
-//       }, remaining)
-//     } else {
-//       // if sequence is already past initial window, hide
-//       setVisible(false)
-//       if (materialRef.current) materialRef.current.opacity = 0
-//     }
-
-//     // watch sequence changes: attach an interval poll to re-evaluate when timeline moves (simple approach)
-//     const id = setInterval(() => {
-//       const secs = getSequenceSeconds()
-//       if (secs === null) return
-//       // if we've moved into the start window and not visible, trigger same logic
-//       if (!visible && secs >= 0 && secs < durationMs / 1000) {
-//         // re-run effect by forcing visible true then scheduling fade
-//         setVisible(true)
-//         if (materialRef.current) materialRef.current.opacity = 1
-//         const remaining = Math.max(0, durationMs - secs * 1000)
-//         if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
-//         hideTimeoutRef.current = setTimeout(() => {
-//           const start = performance.now()
-//           function step (now) {
-//             const t = Math.min(1, (now - start) / Math.max(1, fadeMs))
-//             if (materialRef.current) materialRef.current.opacity = 1 - t
-//             if (t < 1) fadeRAFRef.current = requestAnimationFrame(step)
-//             else {
-//               setVisible(false)
-//               fadeRAFRef.current = null
-//             }
-//           }
-//           fadeRAFRef.current = requestAnimationFrame(step)
-//         }, remaining)
 //       }
-//     }, 120)
 
-//     return () => {
-//       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
-//       if (fadeRAFRef.current) cancelAnimationFrame(fadeRAFRef.current)
-//       clearInterval(id)
+//       // ---------- EXIT logic ----------
+//       // Only animate exit if:
+//       //  - controller requests exit AND not yet exited
+//       //  - AND (we can read seq time and it's < AUTOEND_SEC) OR seq time unknown (fallback -> allow)
+//       if (ctrl.exit && !ctrl.exited) {
+//         const shouldAnimateExit = seqSecNow === null ? true : (seqSecNow < AUTOEND_SEC)
+//         if (shouldAnimateExit) {
+//           // perform normal fade-out animation
+//           ctrl.exited = true
+//           lastTriggerRef.current = now
+//           setMode('exiting')
+//           setTimeout(() => {
+//             if (mounted) setMode('hidden')
+//           }, Math.max(40, exitDuration + 80))
+//         } else {
+//           // sequence already at/after natural end -> SUPPRESS fade at end
+//           // mark as exited without animating
+//           ctrl.exit = false
+//           ctrl.exited = true
+//           setMode('hidden')
+//         }
+//         // write back controller state
+//         window._springFadeController = ctrl
+//       }
 //     }
-//     // eslint-disable-next-line react-hooks/exhaustive-deps
-//   }, [sheet, durationMs, fadeMs])
 
-//   // no per-frame repositioning needed because text is parented to camera.
-//   if (!visible) return null
+//     const id = setInterval(checkController, 60)
+//     checkController()
+//     return () => { mounted = false; clearInterval(id); clearTimeout(holdTimer) }
+//   }, [exitDuration, holdMs, cooldownMs])
 
+//   if (mode === 'hidden') return null
+//   const base = {
+//     pointerEvents: 'none',
+//     position: 'fixed',
+//     left: 0,
+//     top: 0,
+//     width: '100vw',
+//     height: '100vh',
+//     zIndex: 99999,
+//     background: color
+//   }
+
+//   if (mode === 'entered') return <div style={{ ...base, opacity: 1 }} />
+
+//   // exiting: smooth fade out
 //   return (
-//     <group ref={meshRef}>
-//       <Text
-//         anchorX="center"
-//         anchorY="middle"
-//         fontSize={fontSize}
-//         maxWidth={8}
-//         lineHeight={1}
-//         letterSpacing={-0.02}
-//       >
-//         {text}
-//         <meshBasicMaterial
-//           ref={materialRef}
-//           attach="material"
-//           transparent
-//           depthTest={false}
-//           opacity={1}
-//         />
-//       </Text>
-//     </group>
+//     <div
+//       style={{
+//         ...base,
+//         opacity: 1,
+//         transition: `opacity ${exitDuration}ms cubic-bezier(.2,.0,.0,1)`
+//       }}
+//       ref={(el) => {
+//         if (!el) return
+//         requestAnimationFrame(() => { if (el) el.style.opacity = 0 })
+//       }}
+//     />
 //   )
 // }
+
+
+
+/* ---------------- Controlled fade overlay (reads controller) ---------------- */
+ 
+/* ---------------- Controlled fade overlay (reads controller) ---------------- */
+// function ControlledFadeOverlay ({
+//   color = '#050417',
+//   exitDuration = DEFAULT_FADE_EXIT_MS,
+//   holdMs = DEFAULT_FADE_HOLD_MS,
+//   cooldownMs = DEFAULT_FADE_COOLDOWN_MS
+// }) {
+//   const [mode, setMode] = useState('hidden') // 'hidden' | 'entered' | 'exiting'
+//   const lastTriggerRef = useRef(0)
+
+//   // helper: try to read current sequence seconds if Scene exposed the sheet
+//   function getSeqSeconds () {
+//     try {
+//       const sheet = (typeof window !== 'undefined' && window._springSheetRef) || null
+//       if (!sheet) return null
+//       const rawPos = Number(sheet.sequence.position || 0)
+//       let fps = 60
+//       const ptr = sheet.sequence && sheet.sequence.pointer
+//       if (ptr) {
+//         if (typeof ptr.fps === 'number' && ptr.fps > 0) fps = ptr.fps
+//         else if (typeof ptr.frameRate === 'number' && ptr.frameRate > 0) fps = ptr.frameRate
+//       }
+//       return rawPos > 100 ? rawPos / fps : rawPos
+//     } catch (e) {
+//       return null
+//     }
+//   }
+
+//   useEffect(() => {
+//     let mounted = true
+//     let holdTimer = null
+
+//     function checkController () {
+//       const ctrl = (typeof window !== 'undefined' && window._springFadeController) || null
+//       if (!ctrl || !ctrl.sessionId) return
+
+//       const now = performance.now()
+//       const timeSinceLast = now - (lastTriggerRef.current || 0)
+//       const allowTrigger = timeSinceLast >= (cooldownMs || DEFAULT_FADE_COOLDOWN_MS)
+
+//       const seqSecNow = getSeqSeconds() // may be null if Scene didn't expose sheet
+
+//       // --- ENTER: only when ctrl.enter AND inside override window (if we can read seq)
+//       if (ctrl.enter && !ctrl.entered && allowTrigger) {
+//         const inWindow = seqSecNow === null ? true : (seqSecNow >= AUTOSTART_SEC && seqSecNow < AUTOEND_SEC)
+//         if (inWindow) {
+//           ctrl.entered = true
+//           ctrl.exited = false
+//           lastTriggerRef.current = now
+//           window._springFadeController = ctrl
+//           setMode('entered')
+
+//           if (holdMs > 0) {
+//             clearTimeout(holdTimer)
+//             holdTimer = setTimeout(() => {
+//               // hold finished (no auto action here; exit will be driven by ctrl.exit)
+//             }, holdMs)
+//           }
+//         } else {
+//           // outside override window -> suppress for this session
+//           ctrl.entered = true
+//           ctrl.exited = true
+//           window._springFadeController = ctrl
+//           setMode('hidden')
+//         }
+//       }
+
+//       // --- EXIT: animate only if sequence is NOT at/after AUTOEND_SEC (i.e. not natural end)
+//       if (ctrl.exit && !ctrl.exited) {
+//         const shouldAnimateExit = seqSecNow === null ? true : (seqSecNow < AUTOEND_SEC)
+//         if (shouldAnimateExit) {
+//           ctrl.exited = true
+//           lastTriggerRef.current = now
+//           window._springFadeController = ctrl
+//           setMode('exiting')
+//           setTimeout(() => {
+//             if (mounted) setMode('hidden')
+//           }, Math.max(40, exitDuration + 80))
+//         } else {
+//           // suppress exit because we're already at/after natural end
+//           ctrl.exited = true
+//           ctrl.exit = false
+//           window._springFadeController = ctrl
+//           setMode('hidden')
+//         }
+//       }
+//     }
+
+//     const id = setInterval(checkController, 60)
+//     checkController()
+//     return () => { mounted = false; clearInterval(id); clearTimeout(holdTimer) }
+//   }, [exitDuration, holdMs, cooldownMs])
+
+//   if (mode === 'hidden') return null
+//   const base = {
+//     pointerEvents: 'none',
+//     position: 'fixed',
+//     left: 0,
+//     top: 0,
+//     width: '100vw',
+//     height: '100vh',
+//     zIndex: 99999,
+//     background: color
+//   }
+
+//   if (mode === 'entered') return <div style={{ ...base, opacity: 1 }} />
+
+//   // exiting: smooth fade out
+//   return (
+//     <div
+//       style={{
+//         ...base,
+//         opacity: 1,
+//         transition: `opacity ${exitDuration}ms cubic-bezier(.2,.0,.0,1)`
+//       }}
+//       ref={(el) => {
+//         if (!el) return
+//         requestAnimationFrame(() => { if (el) el.style.opacity = 0 })
+//       }}
+//     />
+//   )
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /* ---------------- Main component ---------------- */
 export default function ScrollSection () {
   const project = getProject('myProject', { state: theatreeBBState })
-
-  window.__THEATRE_PROJECT__ = project
-
   const sheet = project.sheet('Scene')
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
-  const pages = isMobile ? 15 : PAGES
+  const pages = isMobile ? 9 : PAGES
 
-
-  
   // --- LEVA: keep all existing GUI controls intact; add Fade group (color + timings + cooldown)
-  const { fadeColor, forcedBlendMs, fadeExitMs, fadeHoldMs, fadeCooldownMs } =
-    useControls('Fade', {
-      fadeColor: { value: '#f2cdc4' },
-      forcedBlendMs: {
-        value: DEFAULT_FORCED_BLEND_MS,
-        min: 50,
-        max: 3000,
-        step: 10
-      },
-      fadeExitMs: { value: DEFAULT_FADE_EXIT_MS, min: 50, max: 3000, step: 10 },
-      fadeHoldMs: { value: DEFAULT_FADE_HOLD_MS, min: 0, max: 2000, step: 10 },
-      fadeCooldownMs: {
-        value: DEFAULT_FADE_COOLDOWN_MS,
-        min: 0,
-        max: 2000,
-        step: 10
-      }
-    })
+  const {
+    fadeColor,
+    forcedBlendMs,
+    fadeExitMs,
+    fadeHoldMs,
+    fadeCooldownMs
+  } = useControls('Fade', {
+    fadeColor: { value: '#f2cdc4' },
+    forcedBlendMs: { value: DEFAULT_FORCED_BLEND_MS, min: 50, max: 3000, step: 10 },
+    fadeExitMs: { value: DEFAULT_FADE_EXIT_MS, min: 50, max: 3000, step: 10 },
+    fadeHoldMs: { value: DEFAULT_FADE_HOLD_MS, min: 0, max: 2000, step: 10 },
+    fadeCooldownMs: { value: DEFAULT_FADE_COOLDOWN_MS, min: 0, max: 2000, step: 10 }
+  })
 
   // make these available to the Scene/bridge via global defaults
   useEffect(() => {
@@ -620,26 +745,14 @@ export default function ScrollSection () {
             blendMeters={9}
           />
         </Suspense>
- 
- 
+
         <ScrollControls pages={pages} distance={3} damping={0.35}>
           <SheetProvider sheet={sheet}>
             <Scene
-              sheet={sheet}
-              guiFadeDefaults={{
-                forcedBlendMs,
-                fadeExitMs,
-                fadeHoldMs,
-                fadeCooldownMs,
-                fadeColor
-              }}
+              guiFadeDefaults={{ forcedBlendMs, fadeExitMs, fadeHoldMs, fadeCooldownMs, fadeColor }}
             />
- 
-            <ScrollOffsetBridge/>
           </SheetProvider>
-          <Scroll html style={{ position: 'absolute', width: '100vw' }}/>
-          
-          
+          <Scroll html style={{ position: 'absolute', width: '100vw' }} />
         </ScrollControls>
       </Canvas>
 
@@ -655,8 +768,7 @@ function CameraOverlayBridge () {
   const [cameraRef, setCameraRef] = useState(null)
   useEffect(() => {
     const id = setInterval(() => {
-      if (window._springCamRef && window._springCamRef.current)
-        setCameraRef(window._springCamRef)
+      if (window._springCamRef && window._springCamRef.current) setCameraRef(window._springCamRef)
     }, 200)
     return () => clearInterval(id)
   }, [])
@@ -665,22 +777,16 @@ function CameraOverlayBridge () {
 }
 
 function FadeOverlayBridge () {
-  const defaults =
-    (typeof window !== 'undefined' && window._springFadeDefaults) || {}
+  const defaults = (typeof window !== 'undefined' && window._springFadeDefaults) || {}
   const color = defaults.fadeColor || '#f2cdc4'
   const exitDuration = defaults.fadeExitMs || DEFAULT_FADE_EXIT_MS
   const holdMs = defaults.fadeHoldMs || DEFAULT_FADE_HOLD_MS
-  return (
-    <ControlledFadeOverlay
-      color={color}
-      exitDuration={exitDuration}
-      holdMs={holdMs}
-    />
-  )
+  return <ControlledFadeOverlay color={color} exitDuration={exitDuration} holdMs={holdMs} />
 }
 
 /* ---------------- Scene (inside Canvas) ---------------- */
-function Scene ({ sheet, guiFadeDefaults = {} }) {
+function Scene ({ guiFadeDefaults = {} }) {
+  const sheet = useCurrentSheet()
   const scroll = useScroll()
   const { set } = useThree()
 
@@ -690,13 +796,9 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
   const wrapperRef = useRef()
 
   // expose cameraRef externally for overlay copy
-  useEffect(() => {
-    window._springCamRef = cameraRef
-  }, [cameraRef])
-  // Scene component-এর ভিতরে:
-  useEffect(() => {
-    window._springSheetRef = sheet
-  }, [sheet])
+  useEffect(() => { window._springCamRef = cameraRef }, [cameraRef])
+// Scene component-এর ভিতরে:
+useEffect(() => { window._springSheetRef = sheet }, [sheet])
 
   useResponsiveSetup({ wrapperRef, cameraRef })
 
@@ -779,9 +881,9 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
     activationRange: { value: 60, min: 1, max: 400, step: 0.5 },
     riseSpeed: { value: 10, min: 0.1, max: 30, step: 0.1 },
 
-    activeRadius: { value: 3, min: 0, max: 80, step: 1 },
-    activeFade: { value: 5, min: 0, max: 80, step: 0.5 },
-    downAmplitude: { value: 22.0, min: 0, max: 80, step: 0.1 },
+    activeRadius: { value: 4, min: 0, max: 80, step: 1 },
+    activeFade: { value: 3, min: 0, max: 80, step: 0.5 },
+    downAmplitude: { value: 20.0, min: 0, max: 80, step: 0.1 },
     frontHold: { value: 1, min: 0, max: 40, step: 1 },
 
     curvatureEnabled: { value: true },
@@ -836,11 +938,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
   const forcedBlendRef = useRef({
     active: false,
     startTime: 0,
-    duration:
-      (guiFadeDefaults && guiFadeDefaults.forcedBlendMs) ||
-      (typeof window !== 'undefined' &&
-        window._springFadeDefaults?.forcedBlendMs) ||
-      DEFAULT_FORCED_BLEND_MS,
+    duration: (guiFadeDefaults && guiFadeDefaults.forcedBlendMs) || (typeof window !== 'undefined' && window._springFadeDefaults?.forcedBlendMs) || DEFAULT_FORCED_BLEND_MS,
     fromPos: new THREE.Vector3(),
     toPos: new THREE.Vector3(),
     fromQuat: new THREE.Quaternion(),
@@ -858,9 +956,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
 
   // helper to create unique session id
   function makeSessionId () {
-    return `fade-${Date.now().toString(36)}-${Math.floor(
-      Math.random() * 1e6
-    ).toString(36)}`
+    return `fade-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`
   }
 
   // map scroll -> theatre timeline (keeps theatre in sync)
@@ -873,7 +969,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
     sheet.sequence.position = scroll.offset * sequenceLength
   })
 
-  // detect override window (enter / exit)  — leave this unchanged
+  // detect override window (enter / exit)
   useFrame(() => {
     if (!sheet) return
     const rawPos = Number(sheet.sequence.position || 0)
@@ -887,43 +983,24 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
       }
     } catch (e) {}
     const seqPosSeconds = rawPos > 100 ? rawPos / fps : rawPos
-    const shouldOverride =
-      seqPosSeconds >= AUTOSTART_SEC && seqPosSeconds < AUTOEND_SEC
+    const shouldOverride = seqPosSeconds >= AUTOSTART_SEC && seqPosSeconds < AUTOEND_SEC
 
     if (shouldOverride !== prevOverrideRef.current) {
       // read latest defaults (allow live GUI changes)
-      const defaults =
-        (typeof window !== 'undefined' && window._springFadeDefaults) ||
-        guiFadeDefaults ||
-        {}
+      const defaults = (typeof window !== 'undefined' && window._springFadeDefaults) || guiFadeDefaults || {}
       const color = defaults.fadeColor || guiFadeDefaults.fadeColor || '#f2cdc4'
-      const forcedBlendMs =
-        defaults.forcedBlendMs ||
-        guiFadeDefaults.forcedBlendMs ||
-        DEFAULT_FORCED_BLEND_MS
-      const fadeExitMs =
-        defaults.fadeExitMs ||
-        guiFadeDefaults.fadeExitMs ||
-        DEFAULT_FADE_EXIT_MS
-      const fadeHoldMs =
-        defaults.fadeHoldMs ||
-        guiFadeDefaults.fadeHoldMs ||
-        DEFAULT_FADE_HOLD_MS
-      const fadeCooldownMs =
-        defaults.fadeCooldownMs ||
-        guiFadeDefaults.fadeCooldownMs ||
-        DEFAULT_FADE_COOLDOWN_MS
+      const forcedBlendMs = defaults.forcedBlendMs || guiFadeDefaults.forcedBlendMs || DEFAULT_FORCED_BLEND_MS
+      const fadeExitMs = defaults.fadeExitMs || guiFadeDefaults.fadeExitMs || DEFAULT_FADE_EXIT_MS
+      const fadeHoldMs = defaults.fadeHoldMs || guiFadeDefaults.fadeHoldMs || DEFAULT_FADE_HOLD_MS
+      const fadeCooldownMs = defaults.fadeCooldownMs || guiFadeDefaults.fadeCooldownMs || DEFAULT_FADE_COOLDOWN_MS
 
       const now = performance.now()
       const timeSinceLast = now - (lastFadeTriggerRef.current || 0)
-      const allowTrigger =
-        timeSinceLast >= (fadeCooldownMs || DEFAULT_FADE_COOLDOWN_MS)
+      const allowTrigger = timeSinceLast >= (fadeCooldownMs || DEFAULT_FADE_COOLDOWN_MS)
 
       if (shouldOverride) {
         // ENTER override:
-        try {
-          sheet.sequence.pause()
-        } catch (e) {}
+        try { sheet.sequence.pause() } catch (e) {}
 
         // compute springPath target and setup forced blend
         let sessionId = makeSessionId()
@@ -934,64 +1011,32 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
           const approxIdx = Math.floor(t * count)
           const brickIndex = THREE.MathUtils.clamp(approxIdx, 0, count - 1)
           const brickT = (brickIndex + 0.5) / count
-          const localPoint = curve
-            .getPointAt(brickT)
-            .clone()
-            .multiplyScalar(pathScale)
-          const radial = new THREE.Vector3(
-            localPoint.x,
-            0,
-            localPoint.z
-          ).normalize()
-          if (!isFinite(radial.x) || radial.lengthSq() < 1e-6)
-            radial.set(1, 0, 0)
+          const localPoint = curve.getPointAt(brickT).clone().multiplyScalar(pathScale)
+          const radial = new THREE.Vector3(localPoint.x, 0, localPoint.z).normalize()
+          if (!isFinite(radial.x) || radial.lengthSq() < 1e-6) radial.set(1, 0, 0)
           const outwardDist = (brickSpec.depth / 2 + radialOffset) * pathScale
           const outward = radial.clone().multiplyScalar(outwardDist)
-          const brickLocalPos = new THREE.Vector3(
-            localPoint.x + outward.x,
-            localPoint.y,
-            localPoint.z + outward.z
-          )
+          const brickLocalPos = new THREE.Vector3(localPoint.x + outward.x, localPoint.y, localPoint.z + outward.z)
           const groupMat = ensureMatrixWorld()
           const worldPos = brickLocalPos.clone().applyMatrix4(groupMat)
 
           // keep aheadT = brickT to avoid camera looking slightly ahead (prevents jerk)
           const aheadT = brickT
-          const aheadPoint = curve
-            .getPointAt(aheadT)
-            .clone()
-            .multiplyScalar(pathScale)
-            .applyMatrix4(groupMat)
+          const aheadPoint = curve.getPointAt(aheadT).clone().multiplyScalar(pathScale).applyMatrix4(groupMat)
 
           // compute desired camera quaternion
           const zAxis_brick = radial.clone().normalize()
           const yAxis_brick = new THREE.Vector3(0, 1, 0)
-          const xAxis_brick = new THREE.Vector3()
-            .crossVectors(yAxis_brick, zAxis_brick)
-            .normalize()
-          const yOrtho = new THREE.Vector3()
-            .crossVectors(zAxis_brick, xAxis_brick)
-            .normalize()
-          const groupQuat = new THREE.Quaternion().setFromRotationMatrix(
-            groupMat
-          )
-          const camZ = zAxis_brick
-            .clone()
-            .multiplyScalar(-1)
-            .applyQuaternion(groupQuat)
-            .normalize()
+          const xAxis_brick = new THREE.Vector3().crossVectors(yAxis_brick, zAxis_brick).normalize()
+          const yOrtho = new THREE.Vector3().crossVectors(zAxis_brick, xAxis_brick).normalize()
+          const groupQuat = new THREE.Quaternion().setFromRotationMatrix(groupMat)
+          const camZ = zAxis_brick.clone().multiplyScalar(-1).applyQuaternion(groupQuat).normalize()
           const camY = yOrtho.clone().applyQuaternion(groupQuat).normalize()
           const camX = new THREE.Vector3().crossVectors(camY, camZ).normalize()
           const camBasisMat = new THREE.Matrix4().makeBasis(camX, camY, camZ)
-          const camQuatFromBasis = new THREE.Quaternion().setFromRotationMatrix(
-            camBasisMat
-          )
-          const camEuler = new THREE.Euler().setFromQuaternion(
-            camQuatFromBasis,
-            'YXZ'
-          )
-          if (mode === 'oppositeSide' || mode === 'oppositeSideMove')
-            camEuler.y += Math.PI
+          const camQuatFromBasis = new THREE.Quaternion().setFromRotationMatrix(camBasisMat)
+          const camEuler = new THREE.Euler().setFromQuaternion(camQuatFromBasis, 'YXZ')
+          if (mode === 'oppositeSide' || mode === 'oppositeSideMove') camEuler.y += Math.PI
           camEuler.y += THREE.MathUtils.degToRad(yOffsetDeg)
           camEuler.x += THREE.MathUtils.degToRad(xOffsetDeg || 0)
           camEuler.z += THREE.MathUtils.degToRad(zOffsetDeg || 0)
@@ -1003,8 +1048,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
             forcedBlendRef.current.startTime = performance.now()
             forcedBlendRef.current.duration = forcedBlendMs
             forcedBlendRef.current.fromPos = cameraRef.current.position.clone()
-            forcedBlendRef.current.fromQuat =
-              cameraRef.current.quaternion.clone()
+            forcedBlendRef.current.fromQuat = cameraRef.current.quaternion.clone()
             forcedBlendRef.current.toPos = worldPos.clone()
             forcedBlendRef.current.toQuat = finalQuat.clone()
             // attach the session id so forced blend knows which fade session to finish
@@ -1021,11 +1065,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
         }
 
         // ensure renderer uses our camera next frame
-        requestAnimationFrame(() => {
-          try {
-            set({ camera: cameraRef.current })
-          } catch (e) {}
-        })
+        requestAnimationFrame(() => { try { set({ camera: cameraRef.current }) } catch (e) {} })
 
         // trigger fade ENTER with controller and defaults (color + timings)
         // BUT only if cooldown passed (avoid rapid re-triggers while scrolling)
@@ -1054,8 +1094,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
               fadeColor: color
             }
             // remember this session id on forcedBlendRef too (if present)
-            if (forcedBlendRef.current)
-              forcedBlendRef.current.sessionId = sessionId
+            if (forcedBlendRef.current) forcedBlendRef.current.sessionId = sessionId
           } else {
             // if cooldown not passed, still ensure defaults are available
             window._springFadeDefaults = {
@@ -1072,9 +1111,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
       } else {
         // EXIT override: resume theatre and cancel blends.
         // IMPORTANT: Do NOT trigger fade here — fade should only start on ENTER.
-        try {
-          sheet.sequence.play()
-        } catch (e) {}
+        try { sheet.sequence.play() } catch (e) {}
         if (blendCancelRef.current) blendCancelRef.current()
 
         // keep defaults available, but do not modify the controller
@@ -1092,7 +1129,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
     }
   })
 
-  // main camera/bricks logic (runs every frame) — unchanged
+  // main camera/bricks logic (runs every frame)
   useFrame((state, delta) => {
     if (!scroll || !springGroupRef.current) return
     const rawOffset = THREE.MathUtils.clamp(scroll.offset, 0, 1)
@@ -1108,15 +1145,12 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
     let diff = targetIndexF - cur
     const absDiff = Math.abs(diff)
 
-    const baseLerp =
-      1 - Math.exp(-Math.max(0.0001, scrollResponsiveness) * 60 * delta)
-    const scale =
-      1 - Math.min(1, (absDiff * startupBias) / Math.max(1, count * 0.25))
+    const baseLerp = 1 - Math.exp(-Math.max(0.0001, scrollResponsiveness) * 60 * delta)
+    const scale = 1 - Math.min(1, (absDiff * startupBias) / Math.max(1, count * 0.25))
     let lerpFactor = baseLerp * (0.2 + 0.8 * scale)
     const maxStepEffective = Math.max(0.001, maxStep) * (delta * 60)
     let step = diff * lerpFactor
-    if (Math.abs(step) > maxStepEffective)
-      step = Math.sign(step) * maxStepEffective
+    if (Math.abs(step) > maxStepEffective) step = Math.sign(step) * maxStepEffective
 
     const next = cur + step
     smoothedIndexRef.current = next
@@ -1135,23 +1169,15 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
 
     const zAxis_brick = radial.clone().normalize()
     const yAxis_brick = new THREE.Vector3(0, 1, 0)
-    const xAxis_brick = new THREE.Vector3()
-      .crossVectors(yAxis_brick, zAxis_brick)
-      .normalize()
-    const yOrtho = new THREE.Vector3()
-      .crossVectors(zAxis_brick, xAxis_brick)
-      .normalize()
+    const xAxis_brick = new THREE.Vector3().crossVectors(yAxis_brick, zAxis_brick).normalize()
+    const yOrtho = new THREE.Vector3().crossVectors(zAxis_brick, xAxis_brick).normalize()
 
     const brickLocalPos = new THREE.Vector3(
       worldPointLocalUnits.x + outward.x,
       worldPointLocalUnits.y,
       worldPointLocalUnits.z + outward.z
     )
-    const brickMat = new THREE.Matrix4().makeBasis(
-      xAxis_brick,
-      yOrtho,
-      zAxis_brick
-    )
+    const brickMat = new THREE.Matrix4().makeBasis(xAxis_brick, yOrtho, zAxis_brick)
     const brickQuat = new THREE.Quaternion().setFromRotationMatrix(brickMat)
 
     const groupMatrix = ensureMatrixWorld()
@@ -1175,37 +1201,23 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
       cameraUpOffset + sign * sideOffset,
       0
     )
-    const cameraOffsetWorld = cameraLocalOffset
-      .clone()
-      .applyQuaternion(brickWorldQuat)
+    const cameraOffsetWorld = cameraLocalOffset.clone().applyQuaternion(brickWorldQuat)
     const camDesiredWorld = brickWorldPos.clone().add(cameraOffsetWorld)
 
-    const camZ = zAxis_brick
-      .clone()
-      .multiplyScalar(-1)
-      .applyQuaternion(groupQuat)
-      .normalize()
+    const camZ = zAxis_brick.clone().multiplyScalar(-1).applyQuaternion(groupQuat).normalize()
     const camY = yOrtho.clone().applyQuaternion(groupQuat).normalize()
     const camX = new THREE.Vector3().crossVectors(camY, camZ).normalize()
     const camBasisMat = new THREE.Matrix4().makeBasis(camX, camY, camZ)
-    const camQuatFromBasis = new THREE.Quaternion().setFromRotationMatrix(
-      camBasisMat
-    )
+    const camQuatFromBasis = new THREE.Quaternion().setFromRotationMatrix(camBasisMat)
 
     // use same Euler order 'YXZ' as earlier and convert to final quat
-    const camEuler = new THREE.Euler().setFromQuaternion(
-      camQuatFromBasis,
-      'YXZ'
-    )
-    if (mode === 'oppositeSide' || mode === 'oppositeSideMove')
-      camEuler.y += Math.PI
+    const camEuler = new THREE.Euler().setFromQuaternion(camQuatFromBasis, 'YXZ')
+    if (mode === 'oppositeSide' || mode === 'oppositeSideMove') camEuler.y += Math.PI
     camEuler.y += THREE.MathUtils.degToRad(yOffsetDeg)
     camEuler.x += THREE.MathUtils.degToRad(xOffsetDeg || 0)
     camEuler.z += THREE.MathUtils.degToRad(zOffsetDeg || 0)
 
-    const maxPitchRad = THREE.MathUtils.degToRad(
-      Math.max(0, Math.min(90, maxPitchDeg || 90))
-    )
+    const maxPitchRad = THREE.MathUtils.degToRad(Math.max(0, Math.min(90, maxPitchDeg || 90)))
     camEuler.x = THREE.MathUtils.clamp(camEuler.x, -maxPitchRad, maxPitchRad)
     const camFinalQuat = new THREE.Quaternion().setFromEuler(camEuler)
 
@@ -1216,10 +1228,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
     const fromBrick = camDesiredWorld.clone().sub(brickWorldPos)
     const distFromBrick = fromBrick.length()
     if (distFromBrick < minDist) {
-      const dir =
-        fromBrick.length() > 1e-6
-          ? fromBrick.normalize()
-          : camZ.clone().multiplyScalar(-1)
+      const dir = fromBrick.length() > 1e-6 ? fromBrick.normalize() : camZ.clone().multiplyScalar(-1)
       camDesiredWorld.copy(brickWorldPos).add(dir.multiplyScalar(minDist))
     }
 
@@ -1231,23 +1240,14 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
       const u = Math.min(1, fb.duration <= 0 ? 1 : elapsed / fb.duration)
       const easeU = u * u * (3 - 2 * u)
       cameraRef.current.position.lerpVectors(fb.fromPos, fb.toPos, easeU)
-      cameraRef.current.quaternion.slerpQuaternions(
-        fb.fromQuat,
-        fb.toQuat,
-        easeU
-      )
+      cameraRef.current.quaternion.slerpQuaternions(fb.fromQuat, fb.toQuat, easeU)
       cameraRef.current.updateMatrixWorld()
 
       if (u >= 1) {
         forcedBlendRef.current.active = false
         // signal fade exit (read controller) ONLY for the same session
         const ctrl = window._springFadeController || null
-        if (
-          ctrl &&
-          ctrl.sessionId &&
-          fb.sessionId &&
-          ctrl.sessionId === fb.sessionId
-        ) {
+        if (ctrl && ctrl.sessionId && fb.sessionId && ctrl.sessionId === fb.sessionId) {
           if (!ctrl.exit && !ctrl.exited) {
             ctrl.exit = true
             window._springFadeController = ctrl
@@ -1256,30 +1256,15 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
       }
     } else {
       if (isOverriding && cameraRef.current) {
-        const desiredDelta = camDesiredWorld
-          .clone()
-          .sub(cameraRef.current.position)
-        const maxMove = Math.max(
-          0.0001,
-          minDist * (state.clock.delta * 60) * (maxMovePerFrameFactor || 1)
-        )
+        const desiredDelta = camDesiredWorld.clone().sub(cameraRef.current.position)
+        const maxMove = Math.max(0.0001, minDist * (state.clock.delta * 60) * (maxMovePerFrameFactor || 1))
         if (desiredDelta.length() > maxMove) {
-          cameraRef.current.position.add(
-            desiredDelta.normalize().multiplyScalar(maxMove)
-          )
+          cameraRef.current.position.add(desiredDelta.normalize().multiplyScalar(maxMove))
         } else {
-          const posSmooth = THREE.MathUtils.clamp(
-            1 - Math.exp(-positionSmoothing * 10 * delta),
-            0,
-            1
-          )
+          const posSmooth = THREE.MathUtils.clamp(1 - Math.exp(-positionSmoothing * 10 * delta), 0, 1)
           cameraRef.current.position.lerp(camDesiredWorld, posSmooth)
         }
-        const rotSmooth = THREE.MathUtils.clamp(
-          1 - Math.exp(-rotationSmoothing * 20 * delta),
-          0,
-          1
-        )
+        const rotSmooth = THREE.MathUtils.clamp(1 - Math.exp(-rotationSmoothing * 20 * delta), 0, 1)
         cameraRef.current.quaternion.slerp(camFinalQuat, rotSmooth)
         cameraRef.current.updateMatrixWorld()
 
@@ -1287,13 +1272,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
         const posDist = cameraRef.current.position.distanceTo(camDesiredWorld)
         const q1 = cameraRef.current.quaternion
         const q2 = camFinalQuat
-        const dot = Math.abs(
-          THREE.MathUtils.clamp(
-            q1.x * q2.x + q1.y * q2.y + q1.z * q2.z + q1.w * q2.w,
-            -1,
-            1
-          )
-        )
+        const dot = Math.abs(THREE.MathUtils.clamp(q1.x * q2.x + q1.y * q2.y + q1.z * q2.z + q1.w * q2.w, -1, 1))
         const angle = 2 * Math.acos(Math.min(1, dot))
         const angleDeg = THREE.MathUtils.radToDeg(angle)
         if (posDist <= POS_THRESHOLD && angleDeg <= ANGLE_THRESHOLD_DEG) {
@@ -1350,11 +1329,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
       <CameraDebugGUI cameraRef={cameraRef} isOverriding={isOverriding} />
 
       <group ref={wrapperRef}>
-        <e.group
-          theatreKey='SpringGroup'
-          ref={springGroupRef}
-          position={[0, 0, 0]}
-        >
+        <e.group theatreKey='SpringGroup' ref={springGroupRef} position={[0, 0, 0]}>
           <SpringPath
             count={brickCount}
             turns={turns}
@@ -1390,17 +1365,10 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
 
         <mesh ref={sphereRef} visible>
           <sphereGeometry args={[SPHERE_RADIUS, 12, 10]} />
-          <meshStandardMaterial
-            color={'#ff4444'}
-            metalness={0.1}
-            roughness={0.4}
-          />
+          <meshStandardMaterial color={'#ff4444'} metalness={0.1} roughness={0.4} />
         </mesh>
 
-        <hemisphereLight
-          args={['#cfe7ff', '#6b4f5f', 0.35]}
-          castShadow={false}
-        />
+        <hemisphereLight args={['#cfe7ff', '#6b4f5f', 0.35]} castShadow={false} />
         <directionalLight position={[30, 40, 10]} intensity={0.25} castShadow />
 
         <e.mesh theatreKey='SandSurface' position={[0, 0, -1]}>
@@ -1408,15 +1376,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
         </e.mesh>
 
         <e.mesh theatreKey='CausticsLightProjector' position={[0, 0, -1]}>
-          <CausticsLightProjector
-            src={videoUrl}
-            target={[0, 0, 0]}
-            fitRect={[9000, 9000]}
-            worldCell={4}
-            cookieSize={1024}
-            intensity={50}
-            playbackRate={2}
-          />
+          <CausticsLightProjector src={videoUrl} target={[0, 0, 0]} fitRect={[9000, 9000]} worldCell={4} cookieSize={1024} intensity={50} playbackRate={2} />
         </e.mesh>
 
         <e.group theatreKey='sankho' position={[0, 0, -1]}>
@@ -1424,41 +1384,26 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
         </e.group>
 
         <e.group theatreKey='L1stone' position={[0, 0, -1]}>
-          <Float
-            speed={2}
-            rotationIntensity={0.1}
-            floatIntensity={0.7}
-            floatingRange={[-2, 2]}
-          >
+          <Float speed={2} rotationIntensity={0.1} floatIntensity={0.7} floatingRange={[-2, 2]}>
             <L1stone scale={10} />
           </Float>
         </e.group>
 
         <e.group theatreKey='L2stone' position={[0, 0, -1]}>
-          <Float
-            speed={5}
-            rotationIntensity={0.1}
-            floatIntensity={0.7}
-            floatingRange={[-2, 2]}
-          >
+          <Float speed={5} rotationIntensity={0.1} floatIntensity={0.7} floatingRange={[-2, 2]}>
             <L2stone scale={10} />
           </Float>
         </e.group>
 
         <e.group theatreKey='L3stone' position={[0, 0, -1]}>
-          <L3stone scale={30} />
+          <L3stone  scale={30}  />
         </e.group>
         <e.group theatreKey='R1stone' position={[0, 0, -1]}>
           <R1stone scale={30} />
         </e.group>
 
         <e.group theatreKey='Pillarstone' position={[0, 0, -1]}>
-          <Float
-            speed={1.5}
-            rotationIntensity={0.1}
-            floatIntensity={0.5}
-            floatingRange={[-2, 2]}
-          >
+          <Float speed={1.5} rotationIntensity={0.1} floatIntensity={0.5} floatingRange={[-2, 2]}>
             <Pillarstone scale={10} />
           </Float>
         </e.group>
@@ -1475,72 +1420,27 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
         </e.mesh>
 
         <e.group theatreKey='Cloud-front-of-camera' position={[0, 0, 1]}>
-          <CloudFloating
-            numPlanes={10}
-            opacity={0.22}
-            color1='#ffffff'
-            color2='#a292aa'
-            speed={0.9}
-            sharedNoise={{
-              worldScale: 0.0098,
-              warpAmt: 0.55,
-              ridgePower: 1.2,
-              ridgeMix: 0.95,
-              dir: [-1.0, 0.09],
-              driftSpeed: 0.018,
-              wobbleFreq: 0.05,
-              wobbleMag: 0.12,
-              dissolveScale: 3.8,
-              dissolveSpeed: 0.03,
-              dissolveWidth: 0.11
-            }}
-          />
+          <CloudFloating numPlanes={10} opacity={0.22} color1='#ffffff' color2='#a292aa' speed={0.9} sharedNoise={{
+            worldScale: 0.0098, warpAmt: 0.55, ridgePower: 1.2, ridgeMix: 0.95,
+            dir: [-1.0, 0.09], driftSpeed: 0.018, wobbleFreq: 0.05, wobbleMag: 0.12,
+            dissolveScale: 3.8, dissolveSpeed: 0.03, dissolveWidth: 0.11
+          }} />
         </e.group>
 
         <e.group theatreKey='Cloud-front' position={[0, 0, 1]}>
-          <CloudFloating
-            numPlanes={40}
-            opacity={0.5}
-            color1='#8d8093'
-            color2='#ffffff'
-            speed={1.0}
-            sharedNoise={{
-              worldScale: 0.1,
-              warpAmt: 0.25,
-              ridgePower: 0.82,
-              ridgeMix: 0.95,
-              dir: [-1.0, -0.3],
-              driftSpeed: 0.018,
-              wobbleFreq: 0.01,
-              wobbleMag: 0.02,
-              dissolveScale: 3.8,
-              dissolveSpeed: 0.03,
-              dissolveWidth: 0.11
-            }}
-          />
+          <CloudFloating numPlanes={40} opacity={0.5} color1='#8d8093' color2='#ffffff' speed={1.0} sharedNoise={{
+            worldScale: 0.1, warpAmt: 0.25, ridgePower: 0.82, ridgeMix: 0.95,
+            dir: [-1.0, -0.3], driftSpeed: 0.018, wobbleFreq: 0.01, wobbleMag: 0.02,
+            dissolveScale: 3.8, dissolveSpeed: 0.03, dissolveWidth: 0.11
+          }} />
         </e.group>
 
         <e.group theatreKey='Cloud-Back' position={[0, 0, 1]}>
-          <CloudFloating
-            numPlanes={25}
-            opacity={0.15}
-            color1='#ffffff'
-            color2='#1004b9'
-            speed={1.0}
-            sharedNoise={{
-              worldScale: 10.0098,
-              warpAmt: 0.55,
-              ridgePower: 1.2,
-              ridgeMix: 5.95,
-              dir: [-1.0, 0.52],
-              driftSpeed: 0.058,
-              wobbleFreq: 0.02,
-              wobbleMag: 0.12,
-              dissolveScale: 3.8,
-              dissolveSpeed: 0.03,
-              dissolveWidth: 0.11
-            }}
-          />
+          <CloudFloating numPlanes={25} opacity={0.15} color1='#ffffff' color2='#1004b9' speed={1.0} sharedNoise={{
+            worldScale: 10.0098, warpAmt: 0.55, ridgePower: 1.2, ridgeMix: 5.95,
+            dir: [-1.0, 0.52], driftSpeed: 0.058, wobbleFreq: 0.02, wobbleMag: 0.12,
+            dissolveScale: 3.8, dissolveSpeed: 0.03, dissolveWidth: 0.11
+          }} />
         </e.group>
 
         <e.group theatreKey='RockStone' position={[0, 0, -1]}>
@@ -1549,25 +1449,6 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
 
         <e.pointLight theatreKey='LightBlue' position={[0, 0, 1]} />
         <e.pointLight theatreKey='LightBlue 2' position={[0, 0, 1]} />
-
-        {/* Fixed text that is parented to camera and shows on theatre start */}       
-
-      {/* <FixedHeroText sheet={sheet} durationSec={7} fadeMs={1000} /> */}
-
-{/* 
-        <e.group theatreKey='FixedHeroText' position={[0, 0, -1]}>
-           <FixedHeroText
-            cameraRef={cameraRef}    
-            sheet={sheet}
-            durationSec={7}
-            fadeMs={1000}
-          /> 
-        </e.group> */}
-
-
-
-      
- 
       </group>
     </>
   )

@@ -2,7 +2,7 @@ import React, { useRef } from 'react'
 import { useGLTF } from '@react-three/drei'
 
 export function L1stone(props) {
-  const { nodes, materials } = useGLTF('/l1-stone.glb')
+  const { nodes, materials } = useGLTF('/models/l1-stone.glb')
   return (
     <group {...props} dispose={null}>
       <group scale={0.01}>
@@ -19,4 +19,4 @@ export function L1stone(props) {
   )
 }
 
-useGLTF.preload('/l1-stone.glb')     
+useGLTF.preload('/models/l1-stone.glb')     

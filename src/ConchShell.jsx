@@ -2,7 +2,7 @@ import React from "react"
 import { useGLTF, Float } from "@react-three/drei"
 
 export function ConchShell(props) {
-  const { nodes, materials } = useGLTF("/conch-shell.glb")
+  const { nodes, materials } = useGLTF("/models/conch-shell.glb")
 
   return (
     <Float
@@ -25,4 +25,4 @@ export function ConchShell(props) {
   )
 }
 
-useGLTF.preload("/conch-shell.glb")
+useGLTF.preload("/models/conch-shell.glb")

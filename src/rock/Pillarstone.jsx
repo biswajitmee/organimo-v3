@@ -2,7 +2,7 @@ import React, { useRef } from 'react'
 import { useGLTF } from '@react-three/drei'
 
 export function Pillarstone(props) {
-  const { nodes, materials } = useGLTF('/pillar-stone.jsx.glb')
+  const { nodes, materials } = useGLTF('/models/pillar-stone.glb')
   return (
     <group {...props} dispose={null}>
       <group scale={0.01}>
@@ -53,4 +53,4 @@ export function Pillarstone(props) {
   )
 }
 
-useGLTF.preload('/pillar-stone.jsx.glb')
+useGLTF.preload('/models/pillar-stone.glb')

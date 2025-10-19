@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Orelega+One&display=swap');
+
+
+
+@layer components {
+  .headingText {
+    @apply font-semibold text-5xl leading-normal;
+  }
+
+  .headingSmall {
+    @apply text-6xl fontFmly;
+  }
+
+  .headingBig {
+    @apply text-9xl fontFmly;
+  }
+
+  .headingBig1 {
+    @apply text-9xl fontFmly;
+  }
+
+  .headingBig2 {
+    @apply text-7xl fontFmly;
+  }
+
+
+}
+
+
+
+@layer utilities {
+  /* Overlay sections background images */
+  .section-0 {
+    background-image: url("/assets/section0.png");
+  }
+  .section-1 {
+    background-image: url("/assets/section1.png");
+  }
+  .section-2 {
+    background-image: url("/assets/section2.png");
+  }
+  .section-3 {
+    background-image: url("/assets/section3.png");
+  }
+
+  /* Responsive fixes */
+  @media (max-width: 768px) {
+    .section-0 .headline,
+    .section-1 .headline,
+    .section-2 .headline,
+    .section-3 .headline {
+      font-size: clamp(2rem, 8vw, 3.5rem);
+    }
+  }
+}

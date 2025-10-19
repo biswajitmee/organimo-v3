@@ -2,11 +2,7 @@
 import * as THREE from 'three'
 import React, { useRef, useMemo, Suspense, useEffect, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-// import { ScrollControls, useScroll, Scroll, Float, Text } from '@react-three/drei'
-import { ScrollControls, useScroll, Scroll, Float, Text, Html } from '@react-three/drei'
-
-import FixedHeroText from './component/FixedHeroText.jsx'
- 
+import { ScrollControls, useScroll, Scroll, Float } from '@react-three/drei'
 
 import { useControls, monitor } from 'leva'
 import { getProject, val } from '@theatre/core'
@@ -18,10 +14,10 @@ import {
   useCurrentSheet
 } from '@theatre/r3f'
 
-// import studio from '@theatre/studio'
-// import extension from '@theatre/r3f/dist/extension'
-// studio.initialize()
-// studio.extend(extension)
+import studio from '@theatre/studio'
+import extension from '@theatre/r3f/dist/extension'
+studio.initialize()
+studio.extend(extension)
 
 import WaterScene from './component/WaterScene'
 import UnderwaterFog from './component/underwater/UnderwaterFog'
@@ -47,9 +43,7 @@ import ImagePlane from './ImagePlane.jsx'
 import { gsap } from 'gsap'
 
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import ScrollOffsetBridge from './ScrollOffsetBridge.jsx'
-  
- 
+import HeroOverlay from './component/HeroOverlay.jsx'
 gsap.registerPlugin(ScrollTrigger)
 
 /* ---------------- Config ---------------- */
@@ -265,14 +259,14 @@ function CameraCopyOverlay ({ cameraRef }) {
         borderRadius: 8,
         fontFamily: 'monospace',
         fontSize: 12,
-        maxWidth: 400
+        maxWidth: 340
       }}
     >
       <div style={{ marginBottom: 6, fontWeight: 600 }}>
         Camera (copy for Theatre)
       </div>
       <div style={{ marginBottom: 6 }}>
-        <div style={{ color: '#9aaaaa' }}>Position (XYZ)</div>
+        <div style={{ color: '#9aa' }}>Position (XYZ)</div>
         <div>{pos}</div>
         <button style={{ marginTop: 6 }} onClick={() => copyToClipboard(pos)}>
           Copy Position
@@ -388,179 +382,13 @@ function ControlledFadeOverlay ({
   )
 }
 
-/* ---------------- FixedText component (attached to camera, shows on theatre start) ---------------- */
-// function FixedText ({
-//   cameraRef,
-//   sheet, // pass theatre sheet to detect sequence position
-//   durationMs = 10000,
-//   fadeMs = 800,
-//   localOffset = new THREE.Vector3(0, -0.8, -4),
-//   text = 'Limitless begins here',
-//   fontSize = 0.45
-// }) {
-//   const meshRef = useRef()
-//   const materialRef = useRef()
-//   const [visible, setVisible] = useState(false)
-//   const hideTimeoutRef = useRef(null)
-//   const fadeRAFRef = useRef(null)
-
-//   // helper to read sequence position in seconds (robust like earlier logic)
-//   function getSequenceSeconds () {
-//     if (!sheet || !sheet.sequence) return null
-//     try {
-//       const rawPos = Number(sheet.sequence.position || 0)
-//       let fps = 60
-//       const ptr = sheet.sequence && sheet.sequence.pointer
-//       if (ptr) {
-//         if (typeof ptr.fps === 'number' && ptr.fps > 0) fps = ptr.fps
-//         else if (typeof ptr.frameRate === 'number' && ptr.frameRate > 0)
-//           fps = ptr.frameRate
-//       }
-//       const seqPosSeconds = rawPos > 100 ? rawPos / fps : rawPos
-//       return seqPosSeconds
-//     } catch (e) {
-//       return null
-//     }
-//   }
-
-//   // attach/detach to camera once — parenting avoids per-frame jitter
-//   useEffect(() => {
-//     const cam = cameraRef && cameraRef.current
-//     const mesh = meshRef.current
-//     if (!cam || !mesh) return
-//     // if already parented elsewhere remove first
-//     if (mesh.parent && mesh.parent !== cam) mesh.parent.remove(mesh)
-//     // attach as child of camera
-//     cam.add(mesh)
-//     // set local transform
-//     mesh.position.copy(localOffset)
-//     mesh.quaternion.set(0, 0, 0, 1) // align with camera
-//     mesh.scale.set(1, 1, 1)
-//     // ensure render order / depth so it stays visible nicely
-//     // cleanup on unmount
-//     return () => {
-//       try {
-//         if (mesh.parent === cam) cam.remove(mesh)
-//       } catch (e) {}
-//     }
-//     // eslint-disable-next-line react-hooks/exhaustive-deps
-//   }, [cameraRef, localOffset])
-
-//   // visibility logic: show from theatre start for durationMs
-//   useEffect(() => {
-//     if (!sheet) return
-//     // clear previous timers / rafs
-//     if (hideTimeoutRef.current) {
-//       clearTimeout(hideTimeoutRef.current)
-//       hideTimeoutRef.current = null
-//     }
-//     if (fadeRAFRef.current) {
-//       cancelAnimationFrame(fadeRAFRef.current)
-//       fadeRAFRef.current = null
-//     }
-
-//     const seqSeconds = getSequenceSeconds()
-//     // if we can read sequence and it's at start (or near start) we show
-//     // show when seq position is < durationMs/1000 (i.e., from start)
-//     if (seqSeconds !== null && seqSeconds >= 0 && seqSeconds < durationMs / 1000) {
-//       // show immediately and schedule fade after remaining time
-//       const remaining = Math.max(0, durationMs - seqSeconds * 1000)
-//       // set visible & full opacity
-//       setVisible(true)
-//       if (materialRef.current) materialRef.current.opacity = 1
-//       // schedule fade animation after remaining ms
-//       hideTimeoutRef.current = setTimeout(() => {
-//         const start = performance.now()
-//         function step (now) {
-//           const t = Math.min(1, (now - start) / Math.max(1, fadeMs))
-//           if (materialRef.current) materialRef.current.opacity = 1 - t
-//           if (t < 1) fadeRAFRef.current = requestAnimationFrame(step)
-//           else {
-//             setVisible(false)
-//             fadeRAFRef.current = null
-//           }
-//         }
-//         fadeRAFRef.current = requestAnimationFrame(step)
-//       }, remaining)
-//     } else {
-//       // if sequence is already past initial window, hide
-//       setVisible(false)
-//       if (materialRef.current) materialRef.current.opacity = 0
-//     }
-
-//     // watch sequence changes: attach an interval poll to re-evaluate when timeline moves (simple approach)
-//     const id = setInterval(() => {
-//       const secs = getSequenceSeconds()
-//       if (secs === null) return
-//       // if we've moved into the start window and not visible, trigger same logic
-//       if (!visible && secs >= 0 && secs < durationMs / 1000) {
-//         // re-run effect by forcing visible true then scheduling fade
-//         setVisible(true)
-//         if (materialRef.current) materialRef.current.opacity = 1
-//         const remaining = Math.max(0, durationMs - secs * 1000)
-//         if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
-//         hideTimeoutRef.current = setTimeout(() => {
-//           const start = performance.now()
-//           function step (now) {
-//             const t = Math.min(1, (now - start) / Math.max(1, fadeMs))
-//             if (materialRef.current) materialRef.current.opacity = 1 - t
-//             if (t < 1) fadeRAFRef.current = requestAnimationFrame(step)
-//             else {
-//               setVisible(false)
-//               fadeRAFRef.current = null
-//             }
-//           }
-//           fadeRAFRef.current = requestAnimationFrame(step)
-//         }, remaining)
-//       }
-//     }, 120)
-
-//     return () => {
-//       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
-//       if (fadeRAFRef.current) cancelAnimationFrame(fadeRAFRef.current)
-//       clearInterval(id)
-//     }
-//     // eslint-disable-next-line react-hooks/exhaustive-deps
-//   }, [sheet, durationMs, fadeMs])
-
-//   // no per-frame repositioning needed because text is parented to camera.
-//   if (!visible) return null
-
-//   return (
-//     <group ref={meshRef}>
-//       <Text
-//         anchorX="center"
-//         anchorY="middle"
-//         fontSize={fontSize}
-//         maxWidth={8}
-//         lineHeight={1}
-//         letterSpacing={-0.02}
-//       >
-//         {text}
-//         <meshBasicMaterial
-//           ref={materialRef}
-//           attach="material"
-//           transparent
-//           depthTest={false}
-//           opacity={1}
-//         />
-//       </Text>
-//     </group>
-//   )
-// }
-
 /* ---------------- Main component ---------------- */
 export default function ScrollSection () {
   const project = getProject('myProject', { state: theatreeBBState })
-
-  window.__THEATRE_PROJECT__ = project
-
   const sheet = project.sheet('Scene')
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
   const pages = isMobile ? 15 : PAGES
 
-
-  
   // --- LEVA: keep all existing GUI controls intact; add Fade group (color + timings + cooldown)
   const { fadeColor, forcedBlendMs, fadeExitMs, fadeHoldMs, fadeCooldownMs } =
     useControls('Fade', {
@@ -620,12 +448,10 @@ export default function ScrollSection () {
             blendMeters={9}
           />
         </Suspense>
- 
- 
+
         <ScrollControls pages={pages} distance={3} damping={0.35}>
           <SheetProvider sheet={sheet}>
             <Scene
-              sheet={sheet}
               guiFadeDefaults={{
                 forcedBlendMs,
                 fadeExitMs,
@@ -634,12 +460,23 @@ export default function ScrollSection () {
                 fadeColor
               }}
             />
- 
-            <ScrollOffsetBridge/>
           </SheetProvider>
-          <Scroll html style={{ position: 'absolute', width: '100vw' }}/>
-          
-          
+          <Scroll html style={{ position: 'absolute', width: '100vw' }}>
+           
+           <HeroOverlay/>
+
+            <section style={{ width: '100vw', height: '100vh' }}>
+              <h1>test</h1>
+            </section>
+
+            <section style={{ width: '100vw', height: '100vh' }}>
+              <h1>test</h1>
+            </section>
+
+            <section style={{ width: '100vw', height: '100vh' }}>
+              <h1>test</h1>
+            </section>
+          </Scroll>
         </ScrollControls>
       </Canvas>
 
@@ -680,7 +517,8 @@ function FadeOverlayBridge () {
 }
 
 /* ---------------- Scene (inside Canvas) ---------------- */
-function Scene ({ sheet, guiFadeDefaults = {} }) {
+function Scene ({ guiFadeDefaults = {} }) {
+  const sheet = useCurrentSheet()
   const scroll = useScroll()
   const { set } = useThree()
 
@@ -873,7 +711,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
     sheet.sequence.position = scroll.offset * sequenceLength
   })
 
-  // detect override window (enter / exit)  — leave this unchanged
+  // detect override window (enter / exit)
   useFrame(() => {
     if (!sheet) return
     const rawPos = Number(sheet.sequence.position || 0)
@@ -1092,7 +930,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
     }
   })
 
-  // main camera/bricks logic (runs every frame) — unchanged
+  // main camera/bricks logic (runs every frame)
   useFrame((state, delta) => {
     if (!scroll || !springGroupRef.current) return
     const rawOffset = THREE.MathUtils.clamp(scroll.offset, 0, 1)
@@ -1549,25 +1387,6 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
 
         <e.pointLight theatreKey='LightBlue' position={[0, 0, 1]} />
         <e.pointLight theatreKey='LightBlue 2' position={[0, 0, 1]} />
-
-        {/* Fixed text that is parented to camera and shows on theatre start */}       
-
-      {/* <FixedHeroText sheet={sheet} durationSec={7} fadeMs={1000} /> */}
-
-{/* 
-        <e.group theatreKey='FixedHeroText' position={[0, 0, -1]}>
-           <FixedHeroText
-            cameraRef={cameraRef}    
-            sheet={sheet}
-            durationSec={7}
-            fadeMs={1000}
-          /> 
-        </e.group> */}
-
-
-
-      
- 
       </group>
     </>
   )

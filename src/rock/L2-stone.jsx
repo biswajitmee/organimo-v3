@@ -2,7 +2,7 @@ import React, { useRef } from 'react'
 import { useGLTF } from '@react-three/drei'
 
 export function L2stone(props) {
-  const { nodes, materials } = useGLTF('/l2-stone.glb')
+  const { nodes, materials } = useGLTF('/models/l2-stone.glb')
   return (
     <group {...props} dispose={null}>
       <group rotation={[-Math.PI / 2, 0, 0]}>
@@ -20,4 +20,4 @@ export function L2stone(props) {
   )
 }
  
-useGLTF.preload('/l2-stone.glb')  
+useGLTF.preload('/models/l2-stone.glb')  
