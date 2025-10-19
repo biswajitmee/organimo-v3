@@ -979,6 +979,10 @@ video {
   transition-duration: 300ms;
 }
 
+body{
+  background-color: black;
+}
+
 /* Overlay sections background images */
 
 /* Responsive fixes */

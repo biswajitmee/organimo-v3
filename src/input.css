@@ -33,6 +33,7 @@
 
 
 @layer utilities {
+  body{background-color: black;}
   /* Overlay sections background images */
   .section-0 {
     background-image: url("/assets/section0.png");

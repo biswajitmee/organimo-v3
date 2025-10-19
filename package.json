@@ -9,7 +9,8 @@
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "instant": "concurrently \"vite build --watch\" \"live-server dist --port=4173 --quiet\""
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",
@@ -35,8 +36,10 @@
     "@types/three": "^0.149.0",
     "@vitejs/plugin-react": "^3.1.0",
     "autoprefixer": "^10.4.14",
+    "concurrently": "^9.2.1",
     "gh-pages": "^6.0.0",
     "less": "^4.1.3",
+    "live-server": "^1.2.2",
     "postcss": "^8.4.24",
     "postcss-load-config": "^4.0.1",
     "sass": "^1.87.0",
