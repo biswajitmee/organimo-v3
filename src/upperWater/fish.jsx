@@ -7,7 +7,7 @@ export function Fish(props) {
   const group = useRef()
   const { nodes, materials, animations, scene } = useGLTF('/models/fish-blender.glb')
   const { actions, mixer } = useAnimations(animations, group)
-
+   
   // --- Autoplay swim animation ---
   useEffect(() => {
     if (!actions) return
