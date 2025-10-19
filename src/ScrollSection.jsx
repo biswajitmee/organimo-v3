@@ -31,7 +31,7 @@ import sandUrl from '../src/assets/sand.jpg?url'
 import CausticsLightProjector from './component/underwater/CausticsLightProjector'
 import videoUrl from '../src/assets/caustics.mp4?url'
 import CloudFloating from './component/CloudFloating.jsx'
-import { Fish } from './upperWater/fish.jsx'
+import { Fish } from './upperWater/Fish.jsx'
 import { Seashell } from './upperWater/Seashell.jsx'
 import RockStone from './rock/RockStone.jsx'
 
