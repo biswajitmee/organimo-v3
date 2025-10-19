@@ -3,7 +3,7 @@ import React, { useRef, useEffect } from 'react'
 import * as THREE from 'three'
 import { useGLTF, useAnimations } from '@react-three/drei'
 
-export function Fish(props) {
+export default function Fish(props) {
   const group = useRef()
   const { nodes, materials, animations, scene } = useGLTF('/models/fish-blender.glb')
   const { actions, mixer } = useAnimations(animations, group)
