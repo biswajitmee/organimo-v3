@@ -7,7 +7,7 @@ import { useGLTF, useTexture } from '@react-three/drei'
 import * as THREE from 'three'
 
 export function HeroRock(props) {
-  const { nodes, materials } = useGLTF('/hero-rock.glb')
+  const { nodes, materials } = useGLTF('/models/hero-rock.glb')
 const rockTex = useTexture('../textures/rock-texture.jpg')
   // Configure texture (repeat, wrap, etc.)
   rockTex.wrapS = rockTex.wrapT = THREE.RepeatWrapping
@@ -29,4 +29,4 @@ const rockTex = useTexture('../textures/rock-texture.jpg')
   )
 }
 
-useGLTF.preload('/hero-rock.glb')
+useGLTF.preload('/models/hero-rock.glb')
