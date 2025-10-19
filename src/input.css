@@ -32,19 +32,7 @@
 
 
 
-@layer utilities {
-html, body, #root { height: 100%; margin: 0; background: #111; color: #fff; }
-* { box-sizing: border-box; }
-
-/* overlay host */
-[data-gsap-overlay] { position: fixed; inset: 0; pointer-events: none; z-index: 99999; }
-
-/* word splitting spans */
-.word { display: inline-block; white-space: pre; }
-
-/* Debug visuals (optional) */
-.debug-badge { position: fixed; right: 12px; top: 12px; z-index: 110000; background: rgba(0,0,0,0.6); color: #fff; padding: 8px; border-radius: 6px; font-family: monospace; font-size:12px; }
-
+@layer utilities { 
   /* Overlay sections background images */
   .section-0 {
     background-image: url("/assets/section0.png");

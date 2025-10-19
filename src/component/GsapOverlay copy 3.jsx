@@ -22,7 +22,7 @@ export default function GsapOverlay() {
   // উদাহরণ: প্রথম সেকশন start:0 end:0.18 => progress 0..0.18 এ সেকশন 0 হবে active
   //
   // *** মনে রাখবে: start < end এবং সবগুলো 0..1 রেঞ্জে থাকতে হবে ***
-  const sectionsConfig = [
+    const sectionsConfig = [
     { start: 0.00, end: 0.10, duration: 0.80, stagger: 0.06, hideDuration: 0.25 },
     { start: 0.14, end: 0.50, duration: 0.75, stagger: 0.05, hideDuration: 0.18 },
     { start: 0.56, end: 0.82, duration: 0.75, stagger: 0.045, hideDuration: 0.18 },

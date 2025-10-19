@@ -2,118 +2,64 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useProgress } from '@react-three/drei'
 
-/**
- * SimpleLoader
- * - autoPreviewMs: auto-close delay after reaching 100 (ms)
- * - holdMs: how long progress must remain 100 before we treat it as complete (debounce)
- * - fadeDuration: fade out duration (ms)
- * - onFinish: callback called once when loader finished/unmounted
- *
- * Behaviour:
- * - uses a global latch window.__SIMPLE_LOADER_COMPLETED__ to ensure single-run across remounts
- * - small hold/debounce to avoid flicker causing double-run
- */
 export default function SimpleLoader({
   onFinish,
-  autoPreviewMs = 3000,
-  holdMs = 120,
-  fadeDuration = 450,
-  showPercent = true
+  autoPreviewMs = 3000, // auto preview delay after reaching 100
+  showPercent = true,
+  fadeDuration = 450
 }) {
   const { progress } = useProgress()
-
-  // If completed globally, don't show at all
-  const globalDone = typeof window !== 'undefined' && !!window.__SIMPLE_LOADER_COMPLETED__
-  const [visible, setVisible] = useState(!globalDone)
-  const [showCompleteButton, setShowCompleteButton] = useState(false)
+  const [visible, setVisible] = useState(true)
+  const [showComplete, setShowComplete] = useState(false)
   const [fadeOut, setFadeOut] = useState(false)
-
-  // refs for guarding single-run behaviour
-  const holdTimerRef = useRef(null)
   const autoTimerRef = useRef(null)
-  const finishedRef = useRef(globalDone) // local guard (mirrors global)
+  const finishCalledRef = useRef(false)
   const closeTimeoutRef = useRef(null)
 
-  // ensure if global flag already set we immediately call onFinish (but do not render)
+  // When progress reaches 100, show COMPLETE button and start auto timer
   useEffect(() => {
-    if (globalDone) {
-      // call onFinish in next tick to let app update
-      setTimeout(() => {
-        try { onFinish?.() } catch (e) {}
-      }, 0)
+    if (progress >= 100 && !showComplete) {
+      setShowComplete(true)
+
+      // start auto preview timer (only if not already fired)
+      if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
+      autoTimerRef.current = setTimeout(() => {
+        handleClose()
+      }, autoPreviewMs)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // watch progress; when it reaches 100 we start a small hold timer to avoid flicker
-  useEffect(() => {
-    if (finishedRef.current) return
-
-    if (progress >= 100) {
-      // start hold timer (debounce) — ensure progress stays at 100 briefly
-      if (holdTimerRef.current) clearTimeout(holdTimerRef.current)
-      holdTimerRef.current = setTimeout(() => {
-        // show complete button and start auto timer (only once)
-        if (!finishedRef.current) {
-          setShowCompleteButton(true)
-
-          // start auto preview timer
-          if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
-          autoTimerRef.current = setTimeout(() => {
-            triggerClose()
-          }, autoPreviewMs)
-        }
-      }, holdMs)
-    } else {
-      // if progress drops below 100 before hold expires, cancel hold
-      if (holdTimerRef.current) {
-        clearTimeout(holdTimerRef.current)
-        holdTimerRef.current = null
-      }
-      // do not revert showCompleteButton once shown — we intentionally keep it if it was already set
-    }
-
+    // If progress drops below 100 (rare) don't revert showComplete
     return () => {
-      // clean per-effect (not strictly necessary)
+      // no-op
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [progress])
 
   useEffect(() => {
     return () => {
-      if (holdTimerRef.current) clearTimeout(holdTimerRef.current)
       if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
       if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current)
     }
   }, [])
 
-  // central close logic guarded to run only once
-  const triggerClose = () => {
-    if (finishedRef.current) return
-    finishedRef.current = true
-    // mark global so remounts don't re-run
-    try { window.__SIMPLE_LOADER_COMPLETED__ = true } catch (e) {}
+  const handleClose = () => {
+    if (finishCalledRef.current) return
+    finishCalledRef.current = true
+
     // cancel auto timer
     if (autoTimerRef.current) {
       clearTimeout(autoTimerRef.current)
       autoTimerRef.current = null
     }
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current)
-      holdTimerRef.current = null
-    }
 
-    // fade out then hide and call onFinish
+    // start fade
     setFadeOut(true)
+    // after fadeDuration call onFinish and unmount loader
     closeTimeoutRef.current = setTimeout(() => {
       setVisible(false)
-      try { onFinish?.() } catch (e) {}
+      try {
+        onFinish?.()
+      } catch (e) {}
     }, fadeDuration)
-  }
-
-  const handleManualComplete = () => {
-    // user clicked COMPLETE button
-    triggerClose()
   }
 
   if (!visible) return null
@@ -166,9 +112,10 @@ export default function SimpleLoader({
           </div>
         )}
 
-        {showCompleteButton && (
+        {/* COMPLETE button appears when progress >= 100 */}
+        {showComplete && (
           <button
-            onClick={handleManualComplete}
+            onClick={handleClose}
             style={{
               position: 'absolute',
               bottom: -48,

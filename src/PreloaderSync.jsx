@@ -1,40 +1,33 @@
-import React, { useEffect, useRef, useState } from "react";
-import useSceneReadyGate from "./loading/useSceneReadyGate";
-import LoaderOverlay from "./LoaderOverlay";
+// small component: listens to drei.useProgress and updates inline preloader.
+// When combined reaches 100, calls onDone after finishing animation.
+import React, { useEffect, useRef } from 'react'
+import { useProgress } from '@react-three/drei'
 
 export default function PreloaderSync({ onDone }) {
-  const { percent, isFullyReady } = useSceneReadyGate();
-  const [showOverlay, setShowOverlay] = useState(true);
-  const calledOnce = useRef(false);
-
-  // update inline preloader immediately
+  const { progress } = useProgress()
+  const initial = 38
+  const remaining = 100 - initial
+  const lastRef = useRef(-1)
   useEffect(() => {
-    try { window.__PRELOADER_API__?.update(percent); } catch (e) {}
-  }, [percent]);
-
-  // when fully ready, show small COMPLETE then call onDone after fade
-  useEffect(() => {
-    if (!isFullyReady) return;
-    if (calledOnce.current) return;
-    calledOnce.current = true;
-
-    // hide inline preloader (visual)
-    try { window.__PRELOADER_API__?.done(); } catch (e) {}
-
-    // show internal overlay COMPLETE button via LoaderOverlay component
-    // we show briefly then call onDone
-    setTimeout(() => {
-      try {
-        setShowOverlay(false); // hide our overlay (we call onDone)
-      } catch (e) {}
-    }, 600);
-
-    // call parent onDone to let app proceed
-    setTimeout(() => {
-      try { onDone && onDone(); } catch (e) {}
-    }, 800);
-
-  }, [isFullyReady, onDone]);
-
-  return showOverlay ? <LoaderOverlay progress={percent} canComplete={isFullyReady} onClose={() => { try { window.__PRELOADER_API__?.done(); } catch(e){}; onDone?.(); }} /> : null;
+    // wait until inline initial finished OR forced
+    if (!window.__PRELOADER_INITIAL_DONE__ && !window.__PRELOADER_FORCED_COMPLETE__) {
+      return
+    }
+    const real = Math.max(0, Math.min(100, progress || 0))
+    const combined = initial + Math.round((real / 100) * remaining)
+    if (combined === lastRef.current) return
+    lastRef.current = combined
+    if (window.__PRELOADER_API__ && window.__PRELOADER_API__.updatePercent) {
+      window.__PRELOADER_API__.updatePercent(combined)
+    }
+    if (combined >= 100) {
+      setTimeout(() => {
+        if (window.__PRELOADER_API__ && window.__PRELOADER_API__.finishNow) {
+          window.__PRELOADER_API__.finishNow(480)
+        }
+        try { onDone && onDone() } catch(e){}
+      }, 420)
+    }
+  }, [progress, onDone])
+  return null
 }
