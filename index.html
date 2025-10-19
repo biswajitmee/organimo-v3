@@ -1,98 +1,55 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Organimo-Style Loader</title>
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>React Fiber Project by biswajit </title>
+    <meta name="description" content="react three fiber by biswajit" />
+    <meta name="keywords" content="react three fiber" />
+    <meta name="author" content="Biswajit Halder portfolio" />
+    <link rel="shortcut icon" href="favicon.ico" />
+    <link rel="stylesheet" type="text/css" href="css/base.css" />
+    <link rel="stylesheet" type="text/css" href="css/components.css" />
+    <link rel="stylesheet" type="text/css" href="css/blur.scss" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
-  <!-- 🔒 Prevent white flash -->
-  <style>
-    html,body {
-      margin: 0;
-      height: 100%;
-      background: #000;
-      color-scheme: dark;
-      overflow: hidden;
-    }
-    #preloader {
-      position: fixed;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      background: #000;
-      z-index: 999999;
-      transition: opacity 0.45s ease;
-      opacity: 1;
-    }
-    .ring-wrap { width: 140px; height: 140px; position: relative; display: grid; place-items: center }
-    svg.ring { transform: rotate(-90deg); width: 130px; height: 130px; }
-    svg.ring circle.track { stroke: #222; stroke-width: 3; fill: none }
-    svg.ring circle.bar {
-      stroke: #d4af37; stroke-width: 4; fill: none; stroke-linecap: round;
-      transition: stroke-dashoffset 0.18s linear;
-    }
-    .percent {
-      position: absolute;
-      color: #cbd5e1;
-      font-size: 22px;
-      font-weight: 700;
-      font-family: Inter, system-ui, sans-serif;
-    }
-  </style>
-</head>
-<body>
-  <!-- 👇 visible immediately on browser hit -->
-  <div id="preloader">
-    <div class="ring-wrap">
-      <svg class="ring" viewBox="0 0 120 120">
-        <circle class="track" cx="60" cy="60" r="54"></circle>
-        <circle id="pre-bar" class="bar" cx="60" cy="60" r="54"
-                stroke-dasharray="339.292" stroke-dashoffset="339.292"></circle>
-      </svg>
-      <div id="pre-pct" class="percent">0%</div>
-    </div>
-  </div>
-
-  <div id="root"></div>
-
-  <!-- ⚡ Inline mini script: runs before React bundle -->
-  <script>
-    (function () {
-      const dash = 2 * Math.PI * 54;
-      const bar = document.getElementById('pre-bar');
-      const pct = document.getElementById('pre-pct');
-      let start = performance.now();
-      let dur = 4000; // 4s to reach 38%
-      let target = 38;
-      let raf;
-      function animate(now) {
-        const t = Math.min(1, (now - start) / dur);
-        const val = Math.round(target * t);
-        pct.textContent = val + '%';
-        bar.setAttribute('stroke-dashoffset', dash * (1 - val / 100));
-        if (t < 1) raf = requestAnimationFrame(animate);
-        else window.__PRELOADER_INITIAL_DONE__ = true;
-      }
-      raf = requestAnimationFrame(animate);
-      window.__PRELOADER_API__ = {
-        update(n) {
-          cancelAnimationFrame(raf);
-          const v = Math.max(0, Math.min(100, n));
-          pct.textContent = v + '%';
-          bar.setAttribute('stroke-dashoffset', dash * (1 - v / 100));
-        },
-        finish(ms = 450) {
-          const pre = document.getElementById('preloader');
-          if (!pre) return;
-          pre.style.transition = `opacity ${ms}ms ease`;
-          pre.style.opacity = '0';
-          setTimeout(() => pre.remove(), ms + 30);
-        }
+ 
+    <script>
+      document.documentElement.className = "js";
+      var supportsCssVars = function () {
+        var e,
+          t = document.createElement("style");
+        return (
+          (t.innerHTML = "root: { --tmp-var: bold; }"),
+          document.head.appendChild(t),
+          (e = !!(
+            window.CSS &&
+            window.CSS.supports &&
+            window.CSS.supports("font-weight", "var(--tmp-var)")
+          )),
+          t.parentNode.removeChild(t),
+          e
+        );
       };
-    })();
-  </script>
+      supportsCssVars() ||
+        alert(
+          "Please view this demo in a modern browser that supports CSS Variables."
+        );
+    </script>
+  </head>
+  <body >
+    <main>    
+      <div id="root">       
+      </div>
+   
+    </main>
+   
+ 
+<script type="module" src="/src/main.jsx"></script>
+<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.12.0/matter.min.js"></script> -->
 
-  <!-- your React/Vite bundle -->
-  <script type="module" src="/src/main.jsx"></script>
-</body>
+ 
+
+
+  </body>
 </html>

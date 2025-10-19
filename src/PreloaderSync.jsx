@@ -1,31 +1,40 @@
-import { useEffect, useRef } from "react";
-import { useProgress } from "@react-three/drei";
+import React, { useEffect, useRef, useState } from "react";
+import useSceneReadyGate from "./loading/useSceneReadyGate";
+import LoaderOverlay from "./LoaderOverlay";
 
 export default function PreloaderSync({ onDone }) {
-  const { progress } = useProgress(); // 0–100 real loading
-  const base = 38; // first CSS stage done till 38%
-  const remain = 100 - base;
-  const sent = useRef(-1);
+  const { percent, isFullyReady } = useSceneReadyGate();
+  const [showOverlay, setShowOverlay] = useState(true);
+  const calledOnce = useRef(false);
 
+  // update inline preloader immediately
   useEffect(() => {
-    const api = window.__PRELOADER_API__;
-    if (!api || !window.__PRELOADER_INITIAL_DONE__) return;
+    try { window.__PRELOADER_API__?.update(percent); } catch (e) {}
+  }, [percent]);
 
-    const real = Math.min(100, Math.max(0, progress));
-    const combined = base + Math.round((real / 100) * remain);
+  // when fully ready, show small COMPLETE then call onDone after fade
+  useEffect(() => {
+    if (!isFullyReady) return;
+    if (calledOnce.current) return;
+    calledOnce.current = true;
 
-    if (sent.current !== combined) {
-      sent.current = combined;
-      api.update(combined);
-    }
+    // hide inline preloader (visual)
+    try { window.__PRELOADER_API__?.done(); } catch (e) {}
 
-    if (combined >= 100) {
-      setTimeout(() => {
-        api.finish(500);
-        onDone?.();
-      }, 300);
-    }
-  }, [progress, onDone]);
+    // show internal overlay COMPLETE button via LoaderOverlay component
+    // we show briefly then call onDone
+    setTimeout(() => {
+      try {
+        setShowOverlay(false); // hide our overlay (we call onDone)
+      } catch (e) {}
+    }, 600);
 
-  return null;
+    // call parent onDone to let app proceed
+    setTimeout(() => {
+      try { onDone && onDone(); } catch (e) {}
+    }, 800);
+
+  }, [isFullyReady, onDone]);
+
+  return showOverlay ? <LoaderOverlay progress={percent} canComplete={isFullyReady} onClose={() => { try { window.__PRELOADER_API__?.done(); } catch(e){}; onDone?.(); }} /> : null;
 }

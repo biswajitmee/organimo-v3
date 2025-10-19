@@ -1,28 +1,26 @@
-// src/loading/useSceneReadyGate.jsx
 import { useEffect, useMemo, useState, useRef } from "react";
 import * as THREE from "three";
 import { useProgress } from "@react-three/drei";
 
 export default function useSceneReadyGate() {
-  const { active, loaded, total, progress } = useProgress(); // drei asset track
+  const { active, loaded, total, progress } = useProgress();
   const [domReady, setDomReady] = useState(false);
   const [fontsReady, setFontsReady] = useState(false);
   const [firstFrame, setFirstFrame] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [theatreReady, setTheatreReady] = useState(true); // default true if not using theatre
 
-  // Keep monotonic percent (never decrease) to avoid flashing back.
+  // monotonic percent
   const [lastPercent, setLastPercent] = useState(0);
   const percentDerived = useMemo(() => {
-    if (total > 0) return Math.min(100, Math.round(progress));
-    return busy ? 50 : 100; // fallback
+    if (total > 0) return Math.min(100, Math.round(progress || 0));
+    return busy ? 50 : 100;
   }, [total, progress, busy]);
 
-  useEffect(() => {
-    // never let percent drop — only increase
-    setLastPercent((prev) => Math.max(prev, percentDerived));
-  }, [percentDerived]);
+  useEffect(() => { setLastPercent(prev => Math.max(prev, percentDerived)); }, [percentDerived]);
 
-  // dark bg to avoid white flash
+  // dark background to prevent white flash
   useEffect(() => {
     document.documentElement.style.background = "#111";
     document.body.style.background = "#111";
@@ -32,9 +30,9 @@ export default function useSceneReadyGate() {
   useEffect(() => {
     if (document.readyState === "complete") setDomReady(true);
     else {
-      const onLoad = () => setDomReady(true);
-      window.addEventListener("load", onLoad, { once: true });
-      return () => window.removeEventListener("load", onLoad);
+      const fn = () => setDomReady(true);
+      window.addEventListener("load", fn, { once: true });
+      return () => window.removeEventListener("load", fn);
     }
   }, []);
 
@@ -42,61 +40,69 @@ export default function useSceneReadyGate() {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      try {
-        if (document.fonts?.ready) await document.fonts.ready;
-      } catch {}
+      try { if (document.fonts?.ready) await document.fonts.ready; } catch(e){}
       if (mounted) setFontsReady(true);
     })();
     return () => { mounted = false; };
   }, []);
 
-  // first frame flag (set by FirstFrameSignal)
+  // first frame: poll for window.__R3F_FIRST_FRAME__ set by FirstFrameSignal or similar
   useEffect(() => {
     let raf;
     const tick = () => {
       try {
         if (window.__R3F_FIRST_FRAME__) setFirstFrame(true);
         else raf = requestAnimationFrame(tick);
-      } catch (e) {
-        // in unusual envs, set firstFrame true after timeout
-        raf = requestAnimationFrame(tick);
-      }
+      } catch(e) { raf = requestAnimationFrame(tick); }
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  // DefaultLoadingManager busy state (covers custom loaders)
+  // camera ready polling (set by CameraReadySignal)
+  useEffect(() => {
+    if (window.__R3F_CAMERA_READY__) { setCameraReady(true); return; }
+    let id = setInterval(() => {
+      if (window.__R3F_CAMERA_READY__) { setCameraReady(true); clearInterval(id); }
+    }, 120);
+    const fallback = setTimeout(() => { if (!window.__R3F_CAMERA_READY__) setCameraReady(true); clearInterval(id); }, 6000);
+    return () => { clearInterval(id); clearTimeout(fallback); };
+  }, []);
+
+  // DefaultLoadingManager covering custom loaders
   useEffect(() => {
     const M = THREE.DefaultLoadingManager;
     const prev = { onStart: M.onStart, onLoad: M.onLoad, onError: M.onError, onProgress: M.onProgress };
-
     M.onStart = () => setBusy(true);
     M.onLoad = () => setBusy(false);
     M.onError = () => setBusy(false);
-    // keep previous onProgress if any
     M.onProgress = prev.onProgress || (() => {});
-
     return () => {
-      M.onStart = prev.onStart;
-      M.onLoad = prev.onLoad;
-      M.onError = prev.onError;
-      M.onProgress = prev.onProgress;
+      M.onStart = prev.onStart; M.onLoad = prev.onLoad; M.onError = prev.onError; M.onProgress = prev.onProgress;
     };
   }, []);
 
-  // Compute assetsDone
   const assetsDone = useMemo(() => {
     if (total > 0) return (loaded >= total && active === 0);
     return !busy;
   }, [total, loaded, active, busy]);
 
-  // Once fully ready, latch it (do not revert)
-  const readyOnceRef = useRef(false);
-  const isFullyReadyComputed = assetsDone && domReady && fontsReady && firstFrame && !busy && lastPercent === 100;
+  // final readiness
+  const isFullyReady = assetsDone && domReady && fontsReady && firstFrame && cameraReady && theatreReady && !busy && lastPercent === 100;
 
-  if (isFullyReadyComputed) readyOnceRef.current = true;
-  const isFullyReady = readyOnceRef.current || isFullyReadyComputed;
+  // debug console group
+  useEffect(() => {
+    console.groupCollapsed("[useSceneReadyGate] status");
+    console.log("percent", lastPercent);
+    console.log("assetsDone", assetsDone);
+    console.log("domReady", domReady);
+    console.log("fontsReady", fontsReady);
+    console.log("firstFrame", firstFrame);
+    console.log("cameraReady", cameraReady);
+    console.log("busy", busy);
+    console.log("isFullyReady", isFullyReady);
+    console.groupEnd();
+  }, [lastPercent, assetsDone, domReady, fontsReady, firstFrame, cameraReady, busy, isFullyReady]);
 
   return { percent: lastPercent, isFullyReady };
 }

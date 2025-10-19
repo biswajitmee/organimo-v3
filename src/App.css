@@ -979,9 +979,34 @@ video {
   transition-duration: 300ms;
 }
 
-body{
-  background-color: black;
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  background: #111;
+  color: #fff;
 }
+
+* {
+  box-sizing: border-box;
+}
+
+/* overlay host */
+
+[data-gsap-overlay] {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 99999;
+}
+
+/* word splitting spans */
+
+.word {
+  display: inline-block;
+  white-space: pre;
+}
+
+/* Debug visuals (optional) */
 
 /* Overlay sections background images */
 
