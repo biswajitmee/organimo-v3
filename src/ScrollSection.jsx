@@ -32,7 +32,7 @@ import CausticsLightProjector from './component/underwater/CausticsLightProjecto
 import videoUrl from '../src/assets/caustics.mp4?url'
 import CloudFloating from './component/CloudFloating.jsx'
 import { Fish } from './upperWater/fish.jsx'
-import { Seashell } from './upperWater/seashell.jsx'
+import { Seashell } from './upperWater/Seashell.jsx'
 import RockStone from './rock/RockStone.jsx'
 
 import { ConchShell } from './ConchShell.jsx'
