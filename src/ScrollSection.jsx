@@ -622,7 +622,7 @@ export default function ScrollSection () {
         </Suspense>
  
   <ScrollOffsetBridge/> 
-        <ScrollControls pages={pages} distance={3} damping={0.35}>
+        <ScrollControls pages={pages} distance={2} damping={0.35}>
           <SheetProvider sheet={sheet}>
             <Scene
               sheet={sheet}

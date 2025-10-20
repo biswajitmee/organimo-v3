@@ -11,7 +11,7 @@ export default function App() {
   return (
     <>
       <SimpleLoader autoProceedMs={1000} />
-      <SimpleLoader autoProceedMs={1000} />
+    
       <div id="app-root">
         <ScrollSection triggersRef={triggersRef} />
         <GsapOverlay triggersRef={triggersRef} />
