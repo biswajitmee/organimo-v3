@@ -8,7 +8,7 @@ import { ScrollControls, useScroll, Scroll, Float, Text, Html } from '@react-thr
 import FixedHeroText from './component/FixedHeroText.jsx'
  
 
-import { useControls, monitor } from 'leva'
+import { useControls, monitor,Leva } from 'leva'
 import { getProject, val } from '@theatre/core'
 import theatreeBBState from './theatreState.json'
 import {
@@ -594,7 +594,7 @@ export default function ScrollSection () {
 
   return (
     <div style={{ height: '100vh', overflow: 'hidden' }}>
-           <leva hidden={isMobile} />
+           <Leva hidden={isMobile} />
 
       <Canvas
         gl={{
