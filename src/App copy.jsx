@@ -1,7 +1,7 @@
 // src/App.jsx
 import React, { useRef, useState } from "react";
 import ScrollSection from "./ScrollSection";
-import GsapOverlay from "./GsapOverlay";
+import GsapOverlay from "./component/GsapOverlay";
 // use the new simple loader
 import SimpleLoader from "./SimpleLoader";
 

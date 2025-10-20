@@ -1,142 +1,41 @@
-// src/SimpleLoader.jsx
-import React, { useEffect, useRef, useState } from 'react'
-import { useProgress } from '@react-three/drei'
+// src/SimpleLoader.jsx (UPDATED to match new API & rules)
+import { useEffect, useRef } from "react";
+import { useProgress } from "@react-three/drei";
+import { gsap } from "gsap";
 
-export default function SimpleLoader({
-  onFinish,
-  autoPreviewMs = 3000, // auto preview delay after reaching 100
-  showPercent = true,
-  fadeDuration = 450
-}) {
-  const { progress } = useProgress()
-  const [visible, setVisible] = useState(true)
-  const [showComplete, setShowComplete] = useState(false)
-  const [fadeOut, setFadeOut] = useState(false)
-  const autoTimerRef = useRef(null)
-  const finishCalledRef = useRef(false)
-  const closeTimeoutRef = useRef(null)
+export default function SimpleLoader() {
+  const { progress, active } = useProgress(); // progress 0..100, active true while loading
+  const requestedMorph = useRef(false);
 
-  // When progress reaches 100, show COMPLETE button and start auto timer
+  // Drive the ring toward real loading (50→100), monotonic & speed-limited by index.html
   useEffect(() => {
-    if (progress >= 100 && !showComplete) {
-      setShowComplete(true)
+    const L = window.__LOADER__;
+    if (!L) return;
+    const mapped = 50 + Math.max(0, Math.min(100, progress)) / 2; // 50..100
+    L.aim(mapped);
+  }, [progress]);
 
-      // start auto preview timer (only if not already fired)
-      if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
-      autoTimerRef.current = setTimeout(() => {
-        handleClose()
-      }, autoPreviewMs)
-    }
-    // If progress drops below 100 (rare) don't revert showComplete
-    return () => {
-      // no-op
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [progress])
-
+  // When truly ready: (progress==100 && active==false) then morph request.
   useEffect(() => {
-    return () => {
-      if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
-      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current)
+    const L = window.__LOADER__;
+    if (!L || requestedMorph.current) return;
+    if (progress >= 100 && active === false) {
+      // wait 2 RAF frames to guarantee first frame rendered behind loader
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          requestedMorph.current = true;
+          L.requestCompleteSwap(); // circle -> pill after visual reaches 100% + 1s
+        });
+      });
     }
-  }, [])
+  }, [progress, active]);
 
-  const handleClose = () => {
-    if (finishCalledRef.current) return
-    finishCalledRef.current = true
+  // Fade the actual app when loader proceeds (handled inside index.html after long-press)
+  useEffect(() => {
+    const onDone = () => gsap.to("#root", { opacity: 1, duration: 0.8, ease: "power2.out" });
+    window.addEventListener("APP_LOADER_DONE", onDone, { once: true });
+    return () => window.removeEventListener("APP_LOADER_DONE", onDone);
+  }, []);
 
-    // cancel auto timer
-    if (autoTimerRef.current) {
-      clearTimeout(autoTimerRef.current)
-      autoTimerRef.current = null
-    }
-
-    // start fade
-    setFadeOut(true)
-    // after fadeDuration call onFinish and unmount loader
-    closeTimeoutRef.current = setTimeout(() => {
-      setVisible(false)
-      try {
-        onFinish?.()
-      } catch (e) {}
-    }, fadeDuration)
-  }
-
-  if (!visible) return null
-
-  return (
-    <div
-      aria-hidden={!visible}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        display: 'grid',
-        placeItems: 'center',
-        background: '#0b0b0b',
-        zIndex: 99999,
-        pointerEvents: 'auto',
-        transition: `opacity ${fadeDuration}ms ease`,
-        opacity: fadeOut ? 0 : 1
-      }}
-    >
-      <div style={{
-        width: 150,
-        height: 150,
-        display: 'grid',
-        placeItems: 'center',
-        position: 'relative'
-      }}>
-        <svg width="130" height="130" viewBox="0 0 120 120" style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx="60" cy="60" r="54" stroke="#2b2b2b" strokeWidth="3" fill="none" />
-          <circle
-            cx="60"
-            cy="60"
-            r="54"
-            stroke="#d4af37"
-            strokeWidth="4"
-            fill="none"
-            strokeDasharray={Math.PI * 2 * 54}
-            strokeDashoffset={Math.PI * 2 * 54 * (1 - Math.min(100, Math.max(0, progress)) / 100)}
-            style={{ transition: 'stroke-dashoffset 220ms linear' }}
-          />
-        </svg>
-
-        {showPercent && (
-          <div style={{
-            position: 'absolute',
-            color: '#cbd5e1',
-            fontSize: 20,
-            fontWeight: 800
-          }}>
-            {Math.round(Math.min(100, Math.max(0, progress)))}%
-          </div>
-        )}
-
-        {/* COMPLETE button appears when progress >= 100 */}
-        {showComplete && (
-          <button
-            onClick={handleClose}
-            style={{
-              position: 'absolute',
-              bottom: -48,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              padding: '10px 22px',
-              borderRadius: 999,
-              border: '2px solid #d4af37',
-              background: 'transparent',
-              color: '#d4af37',
-              fontWeight: 800,
-              letterSpacing: 1.2,
-              cursor: 'pointer',
-              fontSize: 13
-            }}
-            aria-label="Complete and preview"
-          >
-            COMPLETE
-          </button>
-        )}
-      </div>
-    </div>
-  )
+  return null;
 }

@@ -1,149 +1,101 @@
-// src/GsapOverlay.jsx
+// src/component/GsapOverlay.jsx  (unchanged except: waits for loader proceed, then triggers section-0)
 import React, { useEffect, useRef } from "react";
 import { gsap } from "gsap";
-import SplitText from "gsap/SplitText"; // GSAP Premium plugin হলে ভালো; না থাকলে swap utility লাগবে
+import SplitText from "gsap/SplitText";
 gsap.registerPlugin(SplitText);
 
-/*
-  IMPORTANT:
-  - এই কোড ধরে নিচ্ছে window._springScrollOffset আপডেট হচ্ছে (value between 0..1).
-    তোমার ScrollSection এর ScrollOffsetBridge এটা আপডেট করে থাকলে ভাল মতো কাজ করবে.
-  - প্রতিটি সেকশনের timing এখানে আলাদাভাবে কনফিগ করা যাবে (start/end/duration/stagger/hideDuration).
-*/
-
 export default function GsapOverlay() {
-  // ========== SECTION CONFIGURATION ==========
-  // প্রতিটি সেকশনের জন্য এখানে start/end (0..1) নির্ধারণ করো।
-  // start = progress-এ কোথায় এই সেকশন "active" শুরু হবে
-  // end   = progress-এ কোথায় এই সেকশন "active" শেষ হবে
-  // duration, stagger = word reveal animation প্যারামস
-  // hideDuration = overlay hide করার fade সময় (seconds)
-  //
-  // উদাহরণ: প্রথম সেকশন start:0 end:0.18 => progress 0..0.18 এ সেকশন 0 হবে active
-  //
-  // *** মনে রাখবে: start < end এবং সবগুলো 0..1 রেঞ্জে থাকতে হবে ***
-    const sectionsConfig = [
+  const sectionsConfig = [
     { start: 0.00, end: 0.10, duration: 0.80, stagger: 0.06, hideDuration: 0.25 },
     { start: 0.14, end: 0.50, duration: 0.75, stagger: 0.05, hideDuration: 0.18 },
     { start: 0.56, end: 0.82, duration: 0.75, stagger: 0.045, hideDuration: 0.18 },
     { start: 0.88, end: 1.00, duration: 0.85, stagger: 0.06, hideDuration: 0.18 }
   ];
-
   const SECTION_COUNT = sectionsConfig.length;
 
-  // DOM refs - overlay sections
-  const sections = useRef([]);   // DOM nodes for overlay sections
-  const splits = useRef([]);     // SplitText instances
-  const tls = useRef([]);        // per-section timelines
-  const active = useRef(new Array(SECTION_COUNT).fill(false)); // which sections currently "active"
+  const sections = useRef([]);
+  const splits = useRef([]);
+  const tls = useRef([]);
+  const active = useRef(new Array(SECTION_COUNT).fill(false));
   const rafRef = useRef(null);
+  const overlayStarted = useRef(false);
 
   useEffect(() => {
-    // --- create splits + timelines per section using config values ---
     for (let i = 0; i < SECTION_COUNT; i++) {
       const sec = sections.current[i];
       const cfg = sectionsConfig[i];
+      if (!sec || !cfg) continue;
 
-      if (!sec || !cfg) {
-        splits.current[i] = null;
-        tls.current[i] = null;
-        continue;
-      }
-
-      // find headline inside the section (needs .headline or h1/h2)
       const headline = sec.querySelector(".headline") || sec.querySelector("h1,h2");
-      if (!headline) {
-        splits.current[i] = null;
-        tls.current[i] = null;
-        continue;
-      }
+      if (!headline) continue;
 
-      // Split into words
       const split = new SplitText(headline, { type: "words" });
       split.words.forEach(w => w.classList.add("word"));
       splits.current[i] = split;
 
-      // initial state: words hidden below
       gsap.set(split.words, { yPercent: 100, autoAlpha: 0 });
+      gsap.set(sec, { autoAlpha: 0 });
 
-      // timeline: reveal words (paused)
       const tl = gsap.timeline({ paused: true });
       tl.to(split.words, {
-        yPercent: 0,
-        autoAlpha: 1,
-        duration: cfg.duration,
-        stagger: cfg.stagger,
-        ease: "power3.out"
+        yPercent: 0, autoAlpha: 1, duration: cfg.duration, stagger: cfg.stagger, ease: "power3.out"
       });
-
-      // when timeline reversed fully, hide the overlay section (autoAlpha = 0)
-      // note: onReverseComplete fires once the timeline finished reversing.
-      tl.eventCallback("onReverseComplete", () => {
-        try { gsap.set(sec, { autoAlpha: 0 }); } catch (e) {}
-      });
-
+      tl.eventCallback("onReverseComplete", () => { try { gsap.set(sec, { autoAlpha: 0 }); } catch {} });
       tls.current[i] = tl;
     }
 
-    // initial visibility: only show any section you want initially (we'll show none except maybe first)
-    gsap.set(sections.current, { autoAlpha: 0 });
-    // Optionally show the first immediately (uncomment if desired)
-    // if (sections.current[0]) gsap.set(sections.current[0], { autoAlpha: 1 });
-
-    // --- RAF loop: read window._springScrollOffset and update section states ---
     function loop() {
+      if (!overlayStarted.current || window.__OVERLAY_LOCKED__) {
+        rafRef.current = requestAnimationFrame(loop);
+        return;
+      }
       const p = (typeof window !== "undefined" && typeof window._springScrollOffset === "number")
-        ? window._springScrollOffset
-        : 0;
+        ? window._springScrollOffset : 0;
       const progress = Math.max(0, Math.min(1, p));
 
-      // For each section, check if progress is inside its [start, end]
       for (let i = 0; i < SECTION_COUNT; i++) {
         const cfg = sectionsConfig[i];
         const inRange = (progress >= cfg.start && progress <= cfg.end);
-        const wasActive = active.current[i];
+        const was = active.current[i];
 
-        // Entering the range (forward or backward): if not active, activate -> play timeline
-        if (inRange && !wasActive) {
+        if (inRange && !was) {
           active.current[i] = true;
-          // show overlay immediately
-          try { gsap.set(sections.current[i], { autoAlpha: 1 }); } catch (e) {}
-          // reset words initial state (in case)
+          gsap.set(sections.current[i], { autoAlpha: 1 });
           const sp = splits.current[i];
           if (sp) gsap.set(sp.words, { yPercent: 100, autoAlpha: 0 });
-          // play timeline from start (ensures full reveal even if scrubbing)
-          try { tls.current[i]?.play(0); } catch (e) {}
+          tls.current[i]?.play(0);
         }
-
-        // Leaving the range: if it was active and progress moved outside, reverse timeline
-        if (!inRange && wasActive) {
+        if (!inRange && was) {
           active.current[i] = false;
-          try {
-            // reverse timeline so reveal hides (reverse will trigger onReverseComplete that hides the section)
-            tls.current[i]?.reverse();
-            // as fallback also ensure we fade out overlay if reverse isn't set or quick
-            gsap.to(sections.current[i], { autoAlpha: 0, duration: cfg.hideDuration, ease: "power1.in" });
-          } catch (e) {}
+          tls.current[i]?.reverse();
+          gsap.to(sections.current[i], { autoAlpha: 0, duration: cfg.hideDuration, ease: "power1.in" });
         }
       }
-
       rafRef.current = requestAnimationFrame(loop);
     }
-
     rafRef.current = requestAnimationFrame(loop);
 
-    // cleanup
+    // Start overlay & trigger section-0 AFTER loader proceed
+    const startAfterLoader = () => {
+      overlayStarted.current = true;
+      const sec0 = sections.current[0];
+      if (sec0 && tls.current[0]) {
+        gsap.set(sec0, { autoAlpha: 1 });
+        const sp = splits.current[0];
+        if (sp) gsap.set(sp.words, { yPercent: 100, autoAlpha: 0 });
+        tls.current[0].play(0);
+      }
+    };
+    window.addEventListener("APP_LOADER_DONE", startAfterLoader, { once: true });
+
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      tls.current.forEach(t => { try { t.kill(); } catch (e) {} });
-      splits.current.forEach(s => { try { s.revert(); } catch (e) {} });
-      splits.current = [];
-      tls.current = [];
-      active.current = new Array(SECTION_COUNT).fill(false);
+      window.removeEventListener("APP_LOADER_DONE", startAfterLoader);
+      tls.current.forEach(t => { try { t.kill(); } catch {} });
+      splits.current.forEach(s => { try { s.revert(); } catch {} });
     };
   }, []);
 
-  // base overlay class: no opaque background so underlying ScrollSection remains visible
   const baseClass = "absolute inset-0 h-screen w-full text-white pointer-events-none px-[10vw]";
 
   return (
@@ -155,12 +107,9 @@ export default function GsapOverlay() {
             <span className="inline-block mr-2">●</span> FROM BODY{" "}
             <span className="bg-white/10 ml-2 px-2 rounded-full text-xs">TO MIND</span>
           </div>
-
           <h1 className="font-[300] leading-[0.9] headline" style={{ fontSize: "clamp(40px,8vw,120px)" }}>
-            Limitless <br />
-            <span className="font-[200]">begins here.</span>
+            Limitless <br /><span className="font-[200]">begins here.</span>
           </h1>
-
           <p className="opacity-90 mt-5">Journey into the <em className="italic">wonderful world</em> of Organimo®</p>
         </div>
       </section>
