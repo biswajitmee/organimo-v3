@@ -594,6 +594,8 @@ export default function ScrollSection () {
 
   return (
     <div style={{ height: '100vh', overflow: 'hidden' }}>
+           <leva hidden={isMobile} />
+
       <Canvas
         gl={{
           alpha: true,
@@ -1572,3 +1574,4 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
     </>
   )
 }
+   
