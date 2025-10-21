@@ -10,7 +10,7 @@ export default function ImagePlane({ url, ...props }) {
   texture.colorSpace = THREE.SRGBColorSpace
   texture.anisotropy = gl.capabilities.getMaxAnisotropy?.() || 1
   texture.needsUpdate = true
-
+      
   return (
     <mesh {...props}>
       <planeGeometry args={[3500, 1600,1,1,1]} />

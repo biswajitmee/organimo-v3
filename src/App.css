@@ -534,42 +534,6 @@ video {
   --tw-backdrop-sepia:  ;
 }
 
-.container {
-  width: 100%;
-  margin-right: auto;
-  margin-left: auto;
-}
-
-@media (min-width: 640px) {
-  .container {
-    max-width: 640px;
-  }
-}
-
-@media (min-width: 768px) {
-  .container {
-    max-width: 768px;
-  }
-}
-
-@media (min-width: 1024px) {
-  .container {
-    max-width: 1024px;
-  }
-}
-
-@media (min-width: 1280px) {
-  .container {
-    max-width: 1280px;
-  }
-}
-
-@media (min-width: 1536px) {
-  .container {
-    max-width: 1536px;
-  }
-}
-
 .pointer-events-none {
   pointer-events: none;
 }
@@ -580,14 +544,6 @@ video {
 
 .visible {
   visibility: visible;
-}
-
-.invisible {
-  visibility: hidden;
-}
-
-.static {
-  position: static;
 }
 
 .fixed {
@@ -616,10 +572,6 @@ video {
 
 .z-\[999999\] {
   z-index: 999999;
-}
-
-.z-\[9999\] {
-  z-index: 9999;
 }
 
 .mx-2 {
@@ -652,14 +604,6 @@ video {
   margin-top: 2.5rem;
 }
 
-.mt-3 {
-  margin-top: 0.75rem;
-}
-
-.mt-4 {
-  margin-top: 1rem;
-}
-
 .mt-5 {
   margin-top: 1.25rem;
 }
@@ -670,10 +614,6 @@ video {
 
 .mt-8 {
   margin-top: 2rem;
-}
-
-.box-border {
-  box-sizing: border-box;
 }
 
 .block {
@@ -736,18 +676,10 @@ video {
   max-width: 36rem;
 }
 
-.transform {
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
-}
-
 .select-none {
   -webkit-user-select: none;
      -moz-user-select: none;
           user-select: none;
-}
-
-.resize {
-  resize: both;
 }
 
 .flex-col {
@@ -855,11 +787,6 @@ video {
   padding-right: 10vw;
 }
 
-.px-\[6vw\] {
-  padding-left: 6vw;
-  padding-right: 6vw;
-}
-
 .py-1 {
   padding-top: 0.25rem;
   padding-bottom: 0.25rem;
@@ -868,11 +795,6 @@ video {
 .py-3 {
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
-}
-
-.py-4 {
-  padding-top: 1rem;
-  padding-bottom: 1rem;
 }
 
 .pb-\[8vh\] {
@@ -889,18 +811,6 @@ video {
 
 .text-\[18px\] {
   font-size: 18px;
-}
-
-.text-\[clamp\(22px\2c 3\.6vw\2c 40px\)\] {
-  font-size: clamp(22px,3.6vw,40px);
-}
-
-.text-\[clamp\(28px\2c 4\.8vw\2c 64px\)\] {
-  font-size: clamp(28px,4.8vw,64px);
-}
-
-.text-\[clamp\(40px\2c 6vw\2c 120px\)\] {
-  font-size: clamp(40px,6vw,120px);
 }
 
 .text-\[clamp\(40px\2c 8vw\2c 160px\)\] {
@@ -1024,10 +934,6 @@ video {
 
 .invert {
   --tw-invert: invert(100%);
-  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
-}
-
-.filter {
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
 }
 

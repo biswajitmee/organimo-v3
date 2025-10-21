@@ -2,13 +2,11 @@
 import * as THREE from 'three'
 import React, { useRef, useMemo, Suspense, useEffect, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-// import { ScrollControls, useScroll, Scroll, Float, Text } from '@react-three/drei'
 import { ScrollControls, useScroll, Scroll, Float, Text, Html } from '@react-three/drei'
 
 import FixedHeroText from './component/FixedHeroText.jsx'
- 
 
-import { useControls, monitor,Leva } from 'leva'
+import { useControls, monitor, Leva } from 'leva'
 import { getProject, val } from '@theatre/core'
 import theatreeBBState from './theatreState.json'
 import {
@@ -18,38 +16,41 @@ import {
   useCurrentSheet
 } from '@theatre/r3f'
 
-// import studio from '@theatre/studio'
-// import extension from '@theatre/r3f/dist/extension'
-// studio.initialize()
-// studio.extend(extension)
+import studio from '@theatre/studio'
+import extension from '@theatre/r3f/dist/extension'
+studio.initialize()
+studio.extend(extension)
 
+// -----------------------/component/------------
 import WaterScene from './component/WaterScene'
 import UnderwaterFog from './component/underwater/UnderwaterFog'
-import SpringPath from './SpringPath'
 import SandSurface from './component/underwater/SandSurface'
-import sandUrl from '../src/assets/sand.jpg?url'
 import CausticsLightProjector from './component/underwater/CausticsLightProjector'
-import videoUrl from '../src/assets/caustics.mp4?url'
 import CloudFloating from './component/CloudFloating.jsx'
-import { Fish } from './upperWater/fish.jsx'
-import { Seashell } from './upperWater/Seashell.jsx'
-import RockStone from './rock/RockStone.jsx'
-
-import { ConchShell } from './ConchShell.jsx'
+// -----------------------/rock/-------------
 import { L1stone } from './rock/L1-stone.jsx'
 import { L2stone } from './rock/L2-stone.jsx'
 import { L3stone } from './rock/L3-stone.jsx'
 import { R1stone } from './rock/R1-stone.jsx'
+import RockStone from './rock/RockStone.jsx'
 import { Pillarstone } from './rock/Pillarstone.jsx'
-
+// -----------------------/assets/----------
+import sandUrl from '../src/assets/sand.jpg?url'
+import videoUrl from '../src/assets/caustics.mp4?url'
+// -----------------------/upperWater/----------
+import { Fish } from './upperWater/fish.jsx'
+import { Seashell } from './upperWater/Seashell.jsx'
+// -----------------------/----------
+import SpringPath from './SpringPath'
+import { ConchShell } from './ConchShell.jsx'
+import ScrollOffsetBridge from './ScrollOffsetBridge.jsx'
 import ImagePlane from './ImagePlane.jsx'
+// -----------------------------------------------
 
 import { gsap } from 'gsap'
-
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import ScrollOffsetBridge from './ScrollOffsetBridge.jsx'
-  
- 
+import ImageSphere from './ImageSphere.jsx'
+
 gsap.registerPlugin(ScrollTrigger)
 
 /* ---------------- Config ---------------- */
@@ -57,8 +58,8 @@ const PAGES = 14.5
 const SPHERE_RADIUS = 0.07
 
 // theatre override window (seconds)
-const AUTOSTART_SEC = 7
-const AUTOEND_SEC = 110
+const AUTOSTART_SEC = 6
+const AUTOEND_SEC = 130
 
 // default timings (can be overridden via GUI)
 const DEFAULT_FADE_ENTER_MS = 40
@@ -265,7 +266,8 @@ function CameraCopyOverlay ({ cameraRef }) {
         borderRadius: 8,
         fontFamily: 'monospace',
         fontSize: 12,
-        maxWidth: 400
+        maxWidth: 400, 
+       
       }}
     >
       <div style={{ marginBottom: 6, fontWeight: 600 }}>
@@ -388,167 +390,6 @@ function ControlledFadeOverlay ({
   )
 }
 
-/* ---------------- FixedText component (attached to camera, shows on theatre start) ---------------- */
-// function FixedText ({
-//   cameraRef,
-//   sheet, // pass theatre sheet to detect sequence position
-//   durationMs = 10000,
-//   fadeMs = 800,
-//   localOffset = new THREE.Vector3(0, -0.8, -4),
-//   text = 'Limitless begins here',
-//   fontSize = 0.45
-// }) {
-//   const meshRef = useRef()
-//   const materialRef = useRef()
-//   const [visible, setVisible] = useState(false)
-//   const hideTimeoutRef = useRef(null)
-//   const fadeRAFRef = useRef(null)
-
-//   // helper to read sequence position in seconds (robust like earlier logic)
-//   function getSequenceSeconds () {
-//     if (!sheet || !sheet.sequence) return null
-//     try {
-//       const rawPos = Number(sheet.sequence.position || 0)
-//       let fps = 60
-//       const ptr = sheet.sequence && sheet.sequence.pointer
-//       if (ptr) {
-//         if (typeof ptr.fps === 'number' && ptr.fps > 0) fps = ptr.fps
-//         else if (typeof ptr.frameRate === 'number' && ptr.frameRate > 0)
-//           fps = ptr.frameRate
-//       }
-//       const seqPosSeconds = rawPos > 100 ? rawPos / fps : rawPos
-//       return seqPosSeconds
-//     } catch (e) {
-//       return null
-//     }
-//   }
-
-//   // attach/detach to camera once — parenting avoids per-frame jitter
-//   useEffect(() => {
-//     const cam = cameraRef && cameraRef.current
-//     const mesh = meshRef.current
-//     if (!cam || !mesh) return
-//     // if already parented elsewhere remove first
-//     if (mesh.parent && mesh.parent !== cam) mesh.parent.remove(mesh)
-//     // attach as child of camera
-//     cam.add(mesh)
-//     // set local transform
-//     mesh.position.copy(localOffset)
-//     mesh.quaternion.set(0, 0, 0, 1) // align with camera
-//     mesh.scale.set(1, 1, 1)
-//     // ensure render order / depth so it stays visible nicely
-//     // cleanup on unmount
-//     return () => {
-//       try {
-//         if (mesh.parent === cam) cam.remove(mesh)
-//       } catch (e) {}
-//     }
-//     // eslint-disable-next-line react-hooks/exhaustive-deps
-//   }, [cameraRef, localOffset])
-
-//   // visibility logic: show from theatre start for durationMs
-//   useEffect(() => {
-//     if (!sheet) return
-//     // clear previous timers / rafs
-//     if (hideTimeoutRef.current) {
-//       clearTimeout(hideTimeoutRef.current)
-//       hideTimeoutRef.current = null
-//     }
-//     if (fadeRAFRef.current) {
-//       cancelAnimationFrame(fadeRAFRef.current)
-//       fadeRAFRef.current = null
-//     }
-
-//     const seqSeconds = getSequenceSeconds()
-//     // if we can read sequence and it's at start (or near start) we show
-//     // show when seq position is < durationMs/1000 (i.e., from start)
-//     if (seqSeconds !== null && seqSeconds >= 0 && seqSeconds < durationMs / 1000) {
-//       // show immediately and schedule fade after remaining time
-//       const remaining = Math.max(0, durationMs - seqSeconds * 1000)
-//       // set visible & full opacity
-//       setVisible(true)
-//       if (materialRef.current) materialRef.current.opacity = 1
-//       // schedule fade animation after remaining ms
-//       hideTimeoutRef.current = setTimeout(() => {
-//         const start = performance.now()
-//         function step (now) {
-//           const t = Math.min(1, (now - start) / Math.max(1, fadeMs))
-//           if (materialRef.current) materialRef.current.opacity = 1 - t
-//           if (t < 1) fadeRAFRef.current = requestAnimationFrame(step)
-//           else {
-//             setVisible(false)
-//             fadeRAFRef.current = null
-//           }
-//         }
-//         fadeRAFRef.current = requestAnimationFrame(step)
-//       }, remaining)
-//     } else {
-//       // if sequence is already past initial window, hide
-//       setVisible(false)
-//       if (materialRef.current) materialRef.current.opacity = 0
-//     }
-
-//     // watch sequence changes: attach an interval poll to re-evaluate when timeline moves (simple approach)
-//     const id = setInterval(() => {
-//       const secs = getSequenceSeconds()
-//       if (secs === null) return
-//       // if we've moved into the start window and not visible, trigger same logic
-//       if (!visible && secs >= 0 && secs < durationMs / 1000) {
-//         // re-run effect by forcing visible true then scheduling fade
-//         setVisible(true)
-//         if (materialRef.current) materialRef.current.opacity = 1
-//         const remaining = Math.max(0, durationMs - secs * 1000)
-//         if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
-//         hideTimeoutRef.current = setTimeout(() => {
-//           const start = performance.now()
-//           function step (now) {
-//             const t = Math.min(1, (now - start) / Math.max(1, fadeMs))
-//             if (materialRef.current) materialRef.current.opacity = 1 - t
-//             if (t < 1) fadeRAFRef.current = requestAnimationFrame(step)
-//             else {
-//               setVisible(false)
-//               fadeRAFRef.current = null
-//             }
-//           }
-//           fadeRAFRef.current = requestAnimationFrame(step)
-//         }, remaining)
-//       }
-//     }, 120)
-
-//     return () => {
-//       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
-//       if (fadeRAFRef.current) cancelAnimationFrame(fadeRAFRef.current)
-//       clearInterval(id)
-//     }
-//     // eslint-disable-next-line react-hooks/exhaustive-deps
-//   }, [sheet, durationMs, fadeMs])
-
-//   // no per-frame repositioning needed because text is parented to camera.
-//   if (!visible) return null
-
-//   return (
-//     <group ref={meshRef}>
-//       <Text
-//         anchorX="center"
-//         anchorY="middle"
-//         fontSize={fontSize}
-//         maxWidth={8}
-//         lineHeight={1}
-//         letterSpacing={-0.02}
-//       >
-//         {text}
-//         <meshBasicMaterial
-//           ref={materialRef}
-//           attach="material"
-//           transparent
-//           depthTest={false}
-//           opacity={1}
-//         />
-//       </Text>
-//     </group>
-//   )
-// }
-
 /* ---------------- Main component ---------------- */
 export default function ScrollSection () {
   const project = getProject('myProject', { state: theatreeBBState })
@@ -559,8 +400,6 @@ export default function ScrollSection () {
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
   const pages = isMobile ? 15 : PAGES
 
-
-  
   // --- LEVA: keep all existing GUI controls intact; add Fade group (color + timings + cooldown)
   const { fadeColor, forcedBlendMs, fadeExitMs, fadeHoldMs, fadeCooldownMs } =
     useControls('Fade', {
@@ -594,7 +433,7 @@ export default function ScrollSection () {
 
   return (
     <div style={{ height: '100vh', overflow: 'hidden' }}>
-           <Leva hidden={isMobile} />
+      <Leva hidden={isMobile} />
 
       <Canvas
         gl={{
@@ -622,8 +461,8 @@ export default function ScrollSection () {
             blendMeters={9}
           />
         </Suspense>
- 
-  <ScrollOffsetBridge/> 
+
+        <ScrollOffsetBridge />
         <ScrollControls pages={pages} distance={2} damping={0.35}>
           <SheetProvider sheet={sheet}>
             <Scene
@@ -636,12 +475,10 @@ export default function ScrollSection () {
                 fadeColor
               }}
             />
- 
-            <ScrollOffsetBridge/>
+
+            <ScrollOffsetBridge />
           </SheetProvider>
-          <Scroll html style={{ position: 'absolute', width: '100vw' }}/>
-          
-          
+          <Scroll html style={{ position: 'absolute', width: '100vw' }} />
         </ScrollControls>
       </Canvas>
 
@@ -767,10 +604,10 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
       options: ['normal', 'oppositeSide', 'oppositeSideMove']
     },
     startAt: { value: 'top', options: ['top', 'bottom'] },
-    brickCount: { value: 25, min: 1, max: 400, step: 1 },
+    brickCount: { value: 20, min: 1, max: 400, step: 1 },
     cameraSideOffset: { value: -10, min: -40, max: 40, step: 0.01 },
     cameraUpOffset: { value: 5.0, min: -20, max: 50, step: 0.01 },
-    yOffsetDeg: { value: -75, min: -180, max: 180, step: 0.1 },
+    yOffsetDeg: { value: -64, min: -180, max: 180, step: 0.1 },
     xOffsetDeg: { value: -8, min: -180, max: 180, step: 0.1 },
     zOffsetDeg: { value: 0, min: -180, max: 180, step: 0.1 },
     positionSmoothing: { value: 0.38, min: 0, max: 1, step: 0.01 },
@@ -805,11 +642,11 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
 
     maxPitchDeg: { value: 60, min: 0, max: 90, step: 1 },
 
-    minCameraDistance: { value: 18, min: 1, max: 400, step: 1 },
+    minCameraDistance: { value: 19, min: 1, max: 400, step: 1 },
 
     minCamY: { value: -5, min: -200, max: 200, step: 1 },
     maxCamY: { value: 80, min: -200, max: 200, step: 1 },
-    maxMovePerFrameFactor: { value: 1.0, min: 0.01, max: 10, step: 0.01 }
+    maxMovePerFrameFactor: { value: 0.15, min: 0.01, max: 10, step: 0.01 }
   })
 
   const brickSpec = useMemo(() => ({ width: 3, height: 2, depth: 8 }), [])
@@ -849,6 +686,10 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
     toQuat: new THREE.Quaternion()
   })
 
+  // soft pause ref: used to implement the 1s soft-start behavior
+  // structure: { active: bool, start: number(ms), duration: number(ms) }
+  const softPauseRef = useRef({ active: false, start: 0, duration: 1000 })
+
   // stability detection
   const stableFramesRef = useRef(0)
   const STABLE_REQUIRED = 3
@@ -875,7 +716,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
     sheet.sequence.position = scroll.offset * sequenceLength
   })
 
-  // detect override window (enter / exit)  — leave this unchanged
+  // detect override window (enter / exit)  — leave this unchanged except soft-pause insertion
   useFrame(() => {
     if (!sheet) return
     const rawPos = Number(sheet.sequence.position || 0)
@@ -1018,6 +859,13 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
               cameraRef.current.updateMatrixWorld()
             }
           }
+
+          // START soft pause on ENTER: this will create a 1s soft-start (ramp-up)
+          softPauseRef.current = {
+            active: true,
+            start: performance.now(),
+            duration: 1000 // 1 second soft pause
+          }
         } catch (e) {
           console.warn('[FORCED BLEND] compute failed', e)
         }
@@ -1079,6 +927,9 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
         } catch (e) {}
         if (blendCancelRef.current) blendCancelRef.current()
 
+        // clear any soft pause if user leaves override early
+        softPauseRef.current = { active: false, start: 0, duration: 1000 }
+
         // keep defaults available, but do not modify the controller
         window._springFadeDefaults = {
           forcedBlendMs,
@@ -1094,7 +945,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
     }
   })
 
-  // main camera/bricks logic (runs every frame) — unchanged
+  // main camera/bricks logic (runs every frame) — modified to apply soft-pause ramp
   useFrame((state, delta) => {
     if (!scroll || !springGroupRef.current) return
     const rawOffset = THREE.MathUtils.clamp(scroll.offset, 0, 1)
@@ -1225,6 +1076,24 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
       camDesiredWorld.copy(brickWorldPos).add(dir.multiplyScalar(minDist))
     }
 
+    // compute soft-pause factor (0..1) — ease with smoothstep-like cubic
+    let pauseFactor = 1.0
+    if (softPauseRef.current && softPauseRef.current.active) {
+      const now = performance.now()
+      const { start, duration } = softPauseRef.current
+      const u = duration > 0 ? (now - start) / duration : 1
+      if (u >= 1) {
+        softPauseRef.current.active = false
+        pauseFactor = 1.0
+      } else if (u <= 0) {
+        pauseFactor = 0.0
+      } else {
+        // smoothstep-like ease (smooth cubic)
+        const easeU = u * u * (3 - 2 * u)
+        pauseFactor = easeU
+      }
+    }
+
     // forced blend override
     if (forcedBlendRef.current.active && cameraRef.current) {
       const now = performance.now()
@@ -1265,23 +1134,27 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
           0.0001,
           minDist * (state.clock.delta * 60) * (maxMovePerFrameFactor || 1)
         )
+
         if (desiredDelta.length() > maxMove) {
+          // when moving large distance we still want the pauseFactor to reduce movement.
           cameraRef.current.position.add(
-            desiredDelta.normalize().multiplyScalar(maxMove)
+            desiredDelta.normalize().multiplyScalar(maxMove * pauseFactor)
           )
         } else {
-          const posSmooth = THREE.MathUtils.clamp(
+          const posSmoothBase = THREE.MathUtils.clamp(
             1 - Math.exp(-positionSmoothing * 10 * delta),
             0,
             1
           )
+          const posSmooth = posSmoothBase * pauseFactor
           cameraRef.current.position.lerp(camDesiredWorld, posSmooth)
         }
-        const rotSmooth = THREE.MathUtils.clamp(
+        const rotSmoothBase = THREE.MathUtils.clamp(
           1 - Math.exp(-rotationSmoothing * 20 * delta),
           0,
           1
         )
+        const rotSmooth = rotSmoothBase * pauseFactor
         cameraRef.current.quaternion.slerp(camFinalQuat, rotSmooth)
         cameraRef.current.updateMatrixWorld()
 
@@ -1398,7 +1271,9 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
             roughness={0.4}
           />
         </mesh>
-
+        <e.group theatreKey='RockStone' position={[0, 0, -1]}>
+          <RockStone scale={30} />
+        </e.group>
         <hemisphereLight
           args={['#cfe7ff', '#6b4f5f', 0.35]}
           castShadow={false}
@@ -1448,10 +1323,10 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
         </e.group>
 
         <e.group theatreKey='L3stone' position={[0, 0, -1]}>
-          <L3stone scale={30} />
+          <L3stone scale={50} />
         </e.group>
         <e.group theatreKey='R1stone' position={[0, 0, -1]}>
-          <R1stone scale={30} />
+          <R1stone scale={50} />
         </e.group>
 
         <e.group theatreKey='Pillarstone' position={[0, 0, -1]}>
@@ -1545,33 +1420,15 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
           />
         </e.group>
 
-        <e.group theatreKey='RockStone' position={[0, 0, -1]}>
-          <RockStone scale={30} />
-        </e.group>
-
         <e.pointLight theatreKey='LightBlue' position={[0, 0, 1]} />
         <e.pointLight theatreKey='LightBlue 2' position={[0, 0, 1]} />
 
-        {/* Fixed text that is parented to camera and shows on theatre start */}       
+        <ambientLight intensity={2} />
 
-      {/* <FixedHeroText sheet={sheet} durationSec={7} fadeMs={1000} /> */}
-
-{/* 
-        <e.group theatreKey='FixedHeroText' position={[0, 0, -1]}>
-           <FixedHeroText
-            cameraRef={cameraRef}    
-            sheet={sheet}
-            durationSec={7}
-            fadeMs={1000}
-          /> 
-        </e.group> */}
-
-
-
-      
- 
+         <e.group theatreKey='ImageSphere' position={[0, 0, 1]}>
+         <ImageSphere scale={30}/>
+        </e.group>
       </group>
     </>
   )
 }
-   

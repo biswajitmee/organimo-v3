@@ -7,7 +7,7 @@ gsap.registerPlugin(SplitText);
 export default function GsapOverlay() {
   const sectionsConfig = [
     { start: 0.00, end: 0.10, duration: 0.80, stagger: 0.06, hideDuration: 0.25 },
-    { start: 0.14, end: 0.50, duration: 0.75, stagger: 0.05, hideDuration: 0.18 },
+    { start: 0.17, end: 0.50, duration: 0.75, stagger: 0.05, hideDuration: 0.18 },
     { start: 0.56, end: 0.82, duration: 0.75, stagger: 0.045, hideDuration: 0.18 },
     { start: 0.88, end: 1.00, duration: 0.85, stagger: 0.06, hideDuration: 0.18 }
   ];
