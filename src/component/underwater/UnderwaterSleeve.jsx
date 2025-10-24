@@ -21,7 +21,7 @@ function makeVerticalGradientTexture({
   t.colorSpace = THREE.SRGBColorSpace
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping
   return t
-}
+} 
 
 export default function UnderwaterSleeve({
   topY = -0.12,        // just under water surface (y=0)

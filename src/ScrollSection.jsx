@@ -2,7 +2,14 @@
 import * as THREE from 'three'
 import React, { useRef, useMemo, Suspense, useEffect, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { ScrollControls, useScroll, Scroll, Float, Text, Html } from '@react-three/drei'
+import {
+  ScrollControls,
+  useScroll,
+  Scroll,
+  Float,
+  Text,
+  Html
+} from '@react-three/drei'
 
 import FixedHeroText from './component/FixedHeroText.jsx'
 
@@ -19,7 +26,7 @@ import {
 // import studio from '@theatre/studio'
 // import extension from '@theatre/r3f/dist/extension'
 // studio.initialize()
-// studio.extend(extension)         
+// studio.extend(extension)
 
 // -----------------------/component/------------
 import WaterScene from './component/WaterScene'
@@ -49,17 +56,22 @@ import ImagePlane from './ImagePlane.jsx'
 
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import ImageSphere from './ImageSphere.jsx'
+import { Product } from './component/Product.jsx'
+import CloudFloatingNew from './component/CloudFloatingNew.jsx'
 
+import TextBoxUnderWater from './component/underwater/TextBoxUnderWater.jsx'
+import ScrollLockControllerWithCarry from './ScrollLockControllerWithCarry.jsx'
+import UnderwaterSleeve from './component/underwater/UnderwaterSleeve.jsx'
+import ShaderSingleBeam from './component/underwater/ShaderSingleBeam.jsx'
 gsap.registerPlugin(ScrollTrigger)
 
 /* ---------------- Config ---------------- */
-const PAGES = 14.5
+const PAGES = 12
 const SPHERE_RADIUS = 0.07
 
 // theatre override window (seconds)
-const AUTOSTART_SEC = 6
-const AUTOEND_SEC = 130
+const AUTOSTART_SEC = 10
+const AUTOEND_SEC = 70
 
 // default timings (can be overridden via GUI)
 const DEFAULT_FADE_ENTER_MS = 40
@@ -266,8 +278,8 @@ function CameraCopyOverlay ({ cameraRef }) {
         borderRadius: 8,
         fontFamily: 'monospace',
         fontSize: 12,
-        maxWidth: 400, 
-       
+        maxWidth: 400,
+        display: 'none'
       }}
     >
       <div style={{ marginBottom: 6, fontWeight: 600 }}>
@@ -398,7 +410,7 @@ export default function ScrollSection () {
 
   const sheet = project.sheet('Scene')
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
-  const pages = isMobile ? 15 : PAGES
+  const pages = isMobile ? 13 : PAGES
 
   // --- LEVA: keep all existing GUI controls intact; add Fade group (color + timings + cooldown)
   const { fadeColor, forcedBlendMs, fadeExitMs, fadeHoldMs, fadeCooldownMs } =
@@ -418,6 +430,15 @@ export default function ScrollSection () {
         max: 2000,
         step: 10
       }
+    })
+
+  // NEW: Fade toggles for up/down enter/exit
+  const { upEnterEnabled, upExitEnabled, downEnterEnabled, downExitEnabled } =
+    useControls('Fade Toggles', {
+      upEnterEnabled: { label: 'Up-scroll: ENTER enabled', value: true },
+      upExitEnabled: { label: 'Up-scroll: EXIT enabled', value: true },
+      downEnterEnabled: { label: 'Down-scroll: ENTER enabled', value: true },
+      downExitEnabled: { label: 'Down-scroll: EXIT enabled', value: true }
     })
 
   // make these available to the Scene/bridge via global defaults
@@ -472,13 +493,19 @@ export default function ScrollSection () {
                 fadeExitMs,
                 fadeHoldMs,
                 fadeCooldownMs,
-                fadeColor
+                fadeColor,
+                // pass toggles so Scene logic can read them immediately
+                upEnterEnabled,
+                upExitEnabled,
+                downEnterEnabled,
+                downExitEnabled
               }}
             />
 
             <ScrollOffsetBridge />
           </SheetProvider>
           <Scroll html style={{ position: 'absolute', width: '100vw' }} />
+          {/* <ScrollLockControllerWithCarry/> */}
         </ScrollControls>
       </Canvas>
 
@@ -683,7 +710,9 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
     fromPos: new THREE.Vector3(),
     toPos: new THREE.Vector3(),
     fromQuat: new THREE.Quaternion(),
-    toQuat: new THREE.Quaternion()
+    toQuat: new THREE.Quaternion(),
+    sessionId: null,
+    sessionDir: 'down' // 'down' | 'up'
   })
 
   // soft pause ref: used to implement the 1s soft-start behavior
@@ -732,6 +761,20 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
     const seqPosSeconds = rawPos > 100 ? rawPos / fps : rawPos
     const shouldOverride =
       seqPosSeconds >= AUTOSTART_SEC && seqPosSeconds < AUTOEND_SEC
+
+    // compute scroll direction using lastRawRef (previous frame) and current scroll.offset if available
+    let currScrollOffset = null
+    try {
+      currScrollOffset = scroll
+        ? THREE.MathUtils.clamp(scroll.offset, 0, 1)
+        : null
+    } catch (e) {
+      currScrollOffset = null
+    }
+    const directionDown =
+      currScrollOffset == null
+        ? true
+        : currScrollOffset > (lastRawRef.current || 0)
 
     if (shouldOverride !== prevOverrideRef.current) {
       // read latest defaults (allow live GUI changes)
@@ -852,6 +895,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
             forcedBlendRef.current.toQuat = finalQuat.clone()
             // attach the session id so forced blend knows which fade session to finish
             forcedBlendRef.current.sessionId = sessionId
+            forcedBlendRef.current.sessionDir = directionDown ? 'down' : 'up'
           } else {
             if (cameraRef && cameraRef.current) {
               cameraRef.current.position.copy(worldPos)
@@ -878,34 +922,67 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
         })
 
         // trigger fade ENTER with controller and defaults (color + timings)
-        // BUT only if cooldown passed (avoid rapid re-triggers while scrolling)
+        // BUT only if cooldown passed and the user toggle for this direction allows it
         try {
           if (allowTrigger) {
             lastFadeTriggerRef.current = now
             const sessionId = makeSessionId()
-            // create controller for this single enter session
-            window._springFadeController = {
-              sessionId,
-              enter: true,
-              entered: false,
-              exit: false,
-              exited: false,
-              color: color,
-              forcedBlendMs,
-              fadeExitMs,
-              fadeHoldMs
+            const sessionDir = directionDown ? 'down' : 'up'
+            // check toggle for this direction (enter)
+            const enterAllowed =
+              (sessionDir === 'down' &&
+                (guiFadeDefaults.downEnterEnabled ??
+                  window._springFadeDefaults?.downEnterEnabled ??
+                  true)) ||
+              (sessionDir === 'up' &&
+                (guiFadeDefaults.upEnterEnabled ??
+                  window._springFadeDefaults?.upEnterEnabled ??
+                  true))
+
+            // If enterAllowed is true, create controller with enter flag; otherwise create defaults only
+            if (enterAllowed) {
+              window._springFadeController = {
+                sessionId,
+                enter: true,
+                entered: false,
+                exit: false,
+                exited: false,
+                color: color,
+                forcedBlendMs,
+                fadeExitMs,
+                fadeHoldMs,
+                sessionDir
+              }
+              // store defaults for overlay bridge
+              window._springFadeDefaults = {
+                forcedBlendMs,
+                fadeExitMs,
+                fadeHoldMs,
+                fadeCooldownMs,
+                fadeColor: color,
+                // persist toggles as well so other code can read them
+                upEnterEnabled: guiFadeDefaults.upEnterEnabled,
+                upExitEnabled: guiFadeDefaults.upExitEnabled,
+                downEnterEnabled: guiFadeDefaults.downEnterEnabled,
+                downExitEnabled: guiFadeDefaults.downExitEnabled
+              }
+              // remember this session id on forcedBlendRef too (if present)
+              if (forcedBlendRef.current)
+                forcedBlendRef.current.sessionId = sessionId
+            } else {
+              // not allowed: still set defaults so overlay has values, but don't start fade controller
+              window._springFadeDefaults = {
+                forcedBlendMs,
+                fadeExitMs,
+                fadeHoldMs,
+                fadeCooldownMs,
+                fadeColor: color,
+                upEnterEnabled: guiFadeDefaults.upEnterEnabled,
+                upExitEnabled: guiFadeDefaults.upExitEnabled,
+                downEnterEnabled: guiFadeDefaults.downEnterEnabled,
+                downExitEnabled: guiFadeDefaults.downExitEnabled
+              }
             }
-            // store defaults for overlay bridge
-            window._springFadeDefaults = {
-              forcedBlendMs,
-              fadeExitMs,
-              fadeHoldMs,
-              fadeCooldownMs,
-              fadeColor: color
-            }
-            // remember this session id on forcedBlendRef too (if present)
-            if (forcedBlendRef.current)
-              forcedBlendRef.current.sessionId = sessionId
           } else {
             // if cooldown not passed, still ensure defaults are available
             window._springFadeDefaults = {
@@ -913,7 +990,11 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
               fadeExitMs,
               fadeHoldMs,
               fadeCooldownMs,
-              fadeColor: color
+              fadeColor: color,
+              upEnterEnabled: guiFadeDefaults.upEnterEnabled,
+              upExitEnabled: guiFadeDefaults.upExitEnabled,
+              downEnterEnabled: guiFadeDefaults.downEnterEnabled,
+              downExitEnabled: guiFadeDefaults.downExitEnabled
             }
           }
         } catch (e) {
@@ -936,7 +1017,11 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
           fadeExitMs,
           fadeHoldMs,
           fadeCooldownMs,
-          fadeColor: color
+          fadeColor: color,
+          upEnterEnabled: guiFadeDefaults.upEnterEnabled,
+          upExitEnabled: guiFadeDefaults.upExitEnabled,
+          downEnterEnabled: guiFadeDefaults.downEnterEnabled,
+          downExitEnabled: guiFadeDefaults.downExitEnabled
         }
       }
 
@@ -1119,8 +1204,25 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
           fb.sessionId &&
           ctrl.sessionId === fb.sessionId
         ) {
-          if (!ctrl.exit && !ctrl.exited) {
-            ctrl.exit = true
+          // check exit toggle associated with this sessionDir
+          const sessionDir = fb.sessionDir || ctrl.sessionDir || 'down'
+          const exitAllowed =
+            (sessionDir === 'down' &&
+              (guiFadeDefaults.downExitEnabled ??
+                window._springFadeDefaults?.downExitEnabled ??
+                true)) ||
+            (sessionDir === 'up' &&
+              (guiFadeDefaults.upExitEnabled ??
+                window._springFadeDefaults?.upExitEnabled ??
+                true))
+
+          if (exitAllowed) {
+            if (!ctrl.exit && !ctrl.exited) {
+              ctrl.exit = true
+              window._springFadeController = ctrl
+            }
+          } else {
+            // not allowed: leave controller as-is (entered) but do not trigger exit
             window._springFadeController = ctrl
           }
         }
@@ -1182,8 +1284,26 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
           if (ctrl && ctrl.sessionId && !(ctrl.exit || ctrl.exited)) {
             // we only set exit if ctrl.enter is true (means an enter happened previously)
             if (ctrl.enter) {
-              ctrl.exit = true
-              window._springFadeController = ctrl
+              // check exit toggle stored on controller.sessionDir (or forcedBlendRef fallback)
+              const sessionDir =
+                ctrl.sessionDir || forcedBlendRef.current.sessionDir || 'down'
+              const exitAllowed =
+                (sessionDir === 'down' &&
+                  (guiFadeDefaults.downExitEnabled ??
+                    window._springFadeDefaults?.downExitEnabled ??
+                    true)) ||
+                (sessionDir === 'up' &&
+                  (guiFadeDefaults.upExitEnabled ??
+                    window._springFadeDefaults?.upExitEnabled ??
+                    true))
+
+              if (exitAllowed) {
+                ctrl.exit = true
+                window._springFadeController = ctrl
+              } else {
+                // do not set exit if toggle disabled
+                window._springFadeController = ctrl
+              }
             }
           }
         }
@@ -1358,6 +1478,9 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
             color1='#ffffff'
             color2='#a292aa'
             speed={0.9}
+            xSpread={700}
+            ySpread={70}
+            zSpread={150}
             sharedNoise={{
               worldScale: 0.0098,
               warpAmt: 0.55,
@@ -1376,17 +1499,46 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
 
         <e.group theatreKey='Cloud-front' position={[0, 0, 1]}>
           <CloudFloating
-            numPlanes={40}
+            numPlanes={20}
             opacity={0.5}
+            xSpread={700}
+            ySpread={70}
+            zSpread={150}
             color1='#8d8093'
             color2='#ffffff'
             speed={1.0}
             sharedNoise={{
-              worldScale: 0.1,
+              worldScale: 50,
               warpAmt: 0.25,
-              ridgePower: 0.82,
-              ridgeMix: 0.95,
-              dir: [-1.0, -0.3],
+              ridgePower: 0.1,
+              ridgeMix: 0.1,
+              dir: [-1.0, -0.9],
+              driftSpeed: 0.018,
+              wobbleFreq: 0.01,
+              wobbleMag: 0.02,
+              dissolveScale: 3.8,
+              dissolveSpeed: 0.03,
+              dissolveWidth: 0.11
+            }}
+          />
+        </e.group>
+
+        <e.group theatreKey='Cloud-front-New' position={[0, 0, 1]}>
+          <CloudFloatingNew
+            numPlanes={20}
+            opacity={0.5}
+            color1='#8d8093'
+            color2='#ffffff'
+            speed={1.0}
+            xSpread={700}
+            ySpread={70}
+            zSpread={150}
+            sharedNoise={{
+              worldScale: 50,
+              warpAmt: 0.25,
+              ridgePower: 0.1,
+              ridgeMix: 0.1,
+              dir: [-1.0, -0.9],
               driftSpeed: 0.018,
               wobbleFreq: 0.01,
               wobbleMag: 0.02,
@@ -1403,12 +1555,15 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
             opacity={0.15}
             color1='#ffffff'
             color2='#1004b9'
-            speed={1.0}
+            xSpread={700}
+            ySpread={70}
+            zSpread={150}
+            speed={2.0}
             sharedNoise={{
-              worldScale: 10.0098,
+              worldScale: 300.0098,
               warpAmt: 0.55,
-              ridgePower: 1.2,
-              ridgeMix: 5.95,
+              ridgePower: 0.2,
+              ridgeMix: 0.95,
               dir: [-1.0, 0.52],
               driftSpeed: 0.058,
               wobbleFreq: 0.02,
@@ -1423,11 +1578,39 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
         <e.pointLight theatreKey='LightBlue' position={[0, 0, 1]} />
         <e.pointLight theatreKey='LightBlue 2' position={[0, 0, 1]} />
 
-        <ambientLight intensity={2} />
+        <ambientLight intensity={1} />
 
-         <e.group theatreKey='ImageSphere' position={[0, 0, 1]}>
-         <ImageSphere scale={30}/>
+        <e.group theatreKey='Product' position={[0, 0, 1]}>
+          <Product scale={30} />
         </e.group>
+
+        <e.group theatreKey='TextBoxUnderWater-1' position={[0, 0, 1]}>
+          <TextBoxUnderWater
+            startAt={140} // এই কম্পোনেন্ট 30s এ শুরু করবে
+            duration={6} // 4 seconds-এর স্ক্রল পজিশনে পুরো growth হবে (0->1)
+            scrollTimelineLength={150}
+            title='Skin Health'
+            bullets={[
+              'Anti-aging, collagen production, reduces acne, hydrates skin and decreases excessive sebum oil in the skin.',
+              'Helps with severe skin conditions like eczema and psoriasis.'
+            ]}
+            bubbleSrc='/textures/bubble1.png'
+            position={[0, 0.8, 0]}
+            scale={15}
+          />
+        </e.group>
+        <UnderwaterSleeve />
+        <e.mesh
+          rotation={[0, 0, Math.PI / 4]}
+          theatreKey='ShaderSingleBeam_C'
+          position={[-607, -23, 1368]}
+        >
+          <ShaderSingleBeam
+            position={[30, -310, -380]}
+            rotation={[THREE.MathUtils.degToRad(-6), 0, 2.5]}
+            seedOffset={100}
+          />
+        </e.mesh>
       </group>
     </>
   )

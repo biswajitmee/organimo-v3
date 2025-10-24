@@ -2,7 +2,7 @@ import React, { useRef } from 'react'
 import { useGLTF } from '@react-three/drei'
 
 export function Product(props) {
-  const { nodes, materials } = useGLTF('/Product.glb')
+  const { nodes, materials } = useGLTF('/models/Product.glb')
   return (
     <group {...props} dispose={null}>
       <group rotation={[-Math.PI / 2, 0, 0]} scale={0.677}>
@@ -24,4 +24,4 @@ export function Product(props) {
   )
 }
 
-useGLTF.preload('/Product.glb')
+useGLTF.preload('/models/Product.glb')

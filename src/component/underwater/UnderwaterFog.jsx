@@ -21,7 +21,7 @@ export default function UnderwaterFog({
     () => new THREE.FogExp2(new THREE.Color(surfaceColor), surfaceDensity),
     []
   )
-
+ 
   // install once, restore on unmount
   useEffect(() => {
     const prev = scene.fog

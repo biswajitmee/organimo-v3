@@ -184,11 +184,7 @@ uniform float uSpeed;
 uniform float uSeed;
 uniform vec2 uDir;
 
-// ---- noise helpers ----
-float random(vec2 p) {
-  return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453123);
-}
-
+float random(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453123); }
 float noise(vec2 p){
   vec2 i = floor(p);
   vec2 f = fract(p);
@@ -199,56 +195,41 @@ float noise(vec2 p){
   float d = random(i+vec2(1.0,1.0));
   return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);
 }
-
 float fbm(vec2 p){
-  float v = 0.0;
-  float a = 0.5;
-  for (int i = 0; i < 5; i++) {
-    v += a * noise(p);
-    p *= 2.0;
-    a *= 0.5;
-  }
+  float v=0.0,a=0.5;
+  for(int i=0;i<5;i++){ v+=a*noise(p); p*=2.0; a*=0.5; }
   return v;
 }
 
-// ---- Main ----
 void main() {
   vec2 uv = vUv * 2.0 - 1.0;
   float dist = length(uv);
-
-    float localGrad = clamp(vUv.y, 0.0, 1.0);
-
-    
-  // Ensure positive-x main flow by adding tiny epsilon before normalize
   vec2 dirNorm = normalize(uDir + vec2(1e-6, 0.0));
-
   float time = uTime;
-  // MAIN DRIFT: monotonic (never reverses) — moves along dirNorm
-  float driftSpeedScalar = 0.595;
-  vec2 mainDrift = dirNorm * (time * driftSpeedScalar * uSpeed);
-
-  // PERPENDICULAR WOBBLE for local flutter (doesn't reverse main drift)
-  float wobbleFreq = 0.6;
-  float wobbleMag = 0.18;
+  vec2 mainDrift = dirNorm * (time * 0.595 * uSpeed);
   vec2 perp = vec2(-dirNorm.y, dirNorm.x);
-  vec2 perpWobble = perp * (sin(time * wobbleFreq * uSpeed) * wobbleMag);
-
+  vec2 perpWobble = perp * (sin(time * 0.6 * uSpeed) * 0.18);
   vec2 offset = mainDrift + perpWobble;
 
   float body = fbm(uv * 6.0 + offset + uSeed * 0.058);
   float edge = fbm(uv * 19.0 + offset * 0.4 + uSeed * 0.0010);
 
-  float blob = smoothstep(0.85, 0.2, dist - body * 0.25);
-  float feather = smoothstep(0.4, 1.0, dist + edge * 0.35);
-
+  // smoother falloffs
+  float blob = smoothstep(0.92, 0.35, dist - body * 0.22);
+  float feather = smoothstep(0.25, 0.95, dist + edge * 0.25);
   float alpha = blob * (1.0 - feather) * uOpacity;
   alpha = max(alpha, 0.0005);
 
-  float edgeFade = smoothstep(0.8, 0.35, length(uv));
+  // stronger outer fade
+  float edgeFade = smoothstep(0.7, 0.25, length(uv));
   alpha *= edgeFade;
 
-  vec3 baseCol = mix(uColor1, uColor2, vUv.y + body * 0.15);
+  // small random dither to break hard edges
+  float dither = random(vUv * 800.0) * 0.05;
+  alpha = clamp(alpha + dither - 0.025, 0.0, 1.0);
 
+  vec3 baseCol = mix(uColor1, uColor2, vUv.y + body * 0.15);
   gl_FragColor = vec4(baseCol, alpha);
 }
+
 `

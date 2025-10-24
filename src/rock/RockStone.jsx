@@ -21,7 +21,8 @@ export default function RockStone(props) {
       new THREE.MeshStandardMaterial({
         map: rockTex,
         roughness: 1,
-        metalness: 0.0,
+        metalness: 0.1,
+          displacementScale: 0.05,  
       }),
     [rockTex]
   )

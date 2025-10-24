@@ -375,7 +375,7 @@ export default function ShaderSingleBeam({
     }
     return arr
   }, [ringRadius, slices])
-
+ 
   return (
     <group {...props}>
       {Array.from({ length: slices }).map((_, i) => {
@@ -391,9 +391,9 @@ export default function ShaderSingleBeam({
               transparent
               depthWrite={false}
               blending={THREE.AdditiveBlending}
-              toneMapped={false}
+             toneMapped={false}
             />
-          </mesh>
+          </mesh>  
         )
       })}
     </group>

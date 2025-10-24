@@ -1,3 +1,4 @@
+// WaterScene.jsx — mobile-friendly version (plane reduced to 5000 on small screens)
 import * as THREE from 'three'
 import { useRef, useEffect, useMemo } from 'react'
 import { useFrame, extend, useThree } from '@react-three/fiber'
@@ -44,7 +45,6 @@ function makeHorizonBandTexture({
 /* ---------------- component ---------------- */
 export default function WaterScene() {
   const waterRef = useRef()
-  const undersideRef = useRef()
   const bandRef = useRef()
 
   const { scene, gl, camera, size } = useThree()
@@ -77,7 +77,7 @@ export default function WaterScene() {
     scene.fog = new THREE.FogExp2(new THREE.Color(FOG_COLOR), FOG_DENS)
   }, [scene])
 
-  /* water + underside */
+  /* water */
   useEffect(() => {
     // reduce plane size on mobile to 5000, keep big on desktop
     const PLANE_SIZE = isMobile ? 5000 : 15000
@@ -115,55 +115,23 @@ export default function WaterScene() {
     water.material.depthWrite = true
     water.material.depthTest = true
 
-    // enable some reflectivity by default (can be tuned via GUI)
-    if (water.material.uniforms.reflectivity) water.material.uniforms.reflectivity.value = 0.35
+    // smaller size/alpha on mobile
     setU(water, 'size', isMobile ? 0.6 : 0.85)
     setU(water, 'alpha', 1.0)
+    if (water.material.uniforms.reflectivity) water.material.uniforms.reflectivity.value = 0.0
 
     // add to scene
     scene.add(water)
     waterRef.current = water
 
-    // --- underside mesh: thin plane under the water to simulate purple underside ---
-    const undersideGeo = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE, 1, 1)
-    const undersideMat = new THREE.MeshPhongMaterial({
-      color: new THREE.Color('#6B2E8D'), // purple underside default
-      side: THREE.DoubleSide,
-      depthTest: true,
-      depthWrite: true,
-      transparent: false,
-    })
-    const underside = new THREE.Mesh(undersideGeo, undersideMat)
-    underside.rotation.x = -Math.PI / 2
-    // place just below the water so that when camera goes under, user sees purple plane
-    underside.position.y = -0.6
-    underside.frustumCulled = false
-    scene.add(underside)
-    undersideRef.current = underside
-
     // GUI only on desktop — hide on mobile to reduce overhead and accidental touches
     let gui = null
     if (!isMobile) {
-      gui = new GUI({ width: 310 })
-      const params = {
-        distortionScale: isMobile ? 0.18 : 0.28,
-        size: isMobile ? 0.6 : 0.85,
-        waterColor: '#9A8CA9',
-        undersideColor: '#6B2E8D',
-        reflectivity: water.material.uniforms.reflectivity ? water.material.uniforms.reflectivity.value : 0.0,
-      }
-
-      gui.add(params, 'distortionScale', 0, 1).step(0.01).name('Distortion').onChange(v => setU(water, 'distortionScale', v))
-      gui.add(params, 'size', 0.4, 1.4).step(0.01).name('Wave Size').onChange(v => setU(water, 'size', v))
-      gui.addColor(params, 'waterColor').name('Water Tint').onChange(v => setU(water, 'waterColor', new THREE.Color(v)))
-      // underside color control — updates the separate underside mesh material
-      gui.addColor(params, 'undersideColor').name('Underside Color').onChange(v => {
-        if (undersideRef.current && undersideRef.current.material) undersideRef.current.material.color.set(v)
-      })
-      // reflectivity control only if uniform exists
-      if (water.material.uniforms.reflectivity) {
-        gui.add(params, 'reflectivity', 0, 1).step(0.01).name('Reflectivity').onChange(v => { water.material.uniforms.reflectivity.value = v })
-      }
+      gui = new GUI()
+      const params = { distortionScale: 0.28, size: 0.85, waterColor: '#75607b' }
+      gui.add(params, 'distortionScale', 0, 1).step(0.01).onChange(v => setU(water, 'distortionScale', v))
+      gui.add(params, 'size', 0.4, 1.4).step(0.01).onChange(v => setU(water, 'size', v))
+      gui.addColor(params, 'waterColor').onChange(v => setU(water, 'waterColor', new THREE.Color(v)))
     }
 
     // cleanup
@@ -171,17 +139,15 @@ export default function WaterScene() {
       try {
         if (gui) gui.destroy()
         scene.remove(water)
-        scene.remove(underside)
         water.geometry.dispose()
-        underside.geometry.dispose()
         if (water.material) {
+          // dispose uniforms textures carefully
           try {
             const u = water.material.uniforms
             if (u?.normalSampler?.value && u.normalSampler.value.dispose) u.normalSampler.value.dispose()
           } catch (e) {}
           water.material.dispose()
         }
-        if (underside.material) underside.material.dispose()
       } catch (e) { /* ignore */ }
     }
   }, [scene, isMobile])
@@ -213,12 +179,6 @@ export default function WaterScene() {
     // keep water under camera (cheap follow)
     w.position.x = camera.position.x
     w.position.z = camera.position.z
-
-    // also keep underside under camera so it's always below
-    if (undersideRef.current) {
-      undersideRef.current.position.x = camera.position.x
-      undersideRef.current.position.z = camera.position.z
-    }
   })
 
   /* horizon band — fixed at y=0.10, radius ~6000 (scaled with mobile plane) */
