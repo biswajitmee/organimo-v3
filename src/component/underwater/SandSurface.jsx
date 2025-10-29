@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import React, { useMemo } from 'react'
 import { useLoader } from '@react-three/fiber'
 
-export default function SandSurface({ textureUrl, size = 5000 }) {
+export default function SandSurface({ textureUrl, size = 20000 }) {
   // Load the sand texture
   const sandTex = useLoader(THREE.TextureLoader, textureUrl)
 

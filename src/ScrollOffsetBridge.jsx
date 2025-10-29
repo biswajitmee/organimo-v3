@@ -1,25 +1,39 @@
 // src/ScrollOffsetBridge.jsx
-import { useFrame } from '@react-three/fiber'
-import { useScroll } from '@react-three/drei'
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect } from 'react';
 
-export default function ScrollOffsetBridge () {
-  const scroll = useScroll()
-  const firstSet = useRef(false)
+/**
+ * Hook-free ScrollOffsetBridge
+ * - Does NOT use any react-three-fiber hooks
+ * - Safe to render outside <Canvas>
+ * - Publishes normalized offset and raw scrollY/velocity on window for other code to consume
+ */
+export default function ScrollOffsetBridge() {
+  useEffect(() => {
+    let rafId = null;
 
-  useFrame(() => {
-    if (!scroll) return
-    const v = Math.max(0, Math.min(1, scroll.offset || 0))
-    window._springScrollOffset = v
-    if (!firstSet.current) {
-      firstSet.current = true
-      // mark first frame ready so overlay can kick initial reveal
-      window.__R3F_FIRST_FRAME__ = true
-      // also optionally camera ready
-      window.__R3F_CAMERA_READY__ = true
+    function loop() {
+      const offset = (typeof window !== 'undefined' && typeof window._springScrollOffset === 'number')
+        ? window._springScrollOffset
+        : 0;
+
+      // publish convenience globals (your code / overlay can read these)
+      window._r3fScrollOffset = offset;
+      window._r3fScrollY = window._springScrollY ?? 0;
+      window._r3fScrollVelocity = window._springScrollVelocity ?? 0;
+
+      rafId = requestAnimationFrame(loop);
     }
-  })
 
-  // just a component that hooks into r3f frame loop
-  return null
+    rafId = requestAnimationFrame(loop);
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      // optional cleanup:
+      // delete window._r3fScrollOffset;
+      // delete window._r3fScrollY;
+      // delete window._r3fScrollVelocity;
+    };
+  }, []);
+
+  return null;
 }

@@ -327,7 +327,7 @@ export default function SpringPath({
     const tmpScale = new THREE.Vector3(1, 1, 1)
 
     const dt = Math.min(0.06, state.clock.delta) || (1 / 60)
-    const perFrameLerp = 1 - Math.exp(- (Math.max(0.01, riseSmoothing) * 120) * dt)
+    const perFrameLerp = 1 - Math.exp(- (Math.max(0.01, riseSmoothing) * 60) * dt)
 
     for (let i = 0; i < Math.min(base.length, mesh.count); i++) {
       const b = base[i]

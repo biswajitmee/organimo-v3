@@ -2,7 +2,14 @@
 import * as THREE from 'three'
 import React, { useRef, useMemo, Suspense, useEffect, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Float, Text, Html } from '@react-three/drei'
+import {
+  ScrollControls,
+  useScroll,
+  Scroll,
+  Float,
+  Text,
+  Html
+} from '@react-three/drei'
 
 import FixedHeroText from './component/FixedHeroText.jsx'
 
@@ -16,10 +23,10 @@ import {
   useCurrentSheet
 } from '@theatre/r3f'
 
-// import studio from '@theatre/studio'
-// import extension from '@theatre/r3f/dist/extension'
-// studio.initialize()
-// studio.extend(extension)
+import studio from '@theatre/studio'
+import extension from '@theatre/r3f/dist/extension'
+studio.initialize()
+studio.extend(extension)
 
 // -----------------------/component/------------
 import WaterScene from './component/WaterScene'
@@ -44,7 +51,6 @@ import { Seashell } from './upperWater/Seashell.jsx'
 import SpringPath from './SpringPath'
 import { ConchShell } from './ConchShell.jsx'
 import ScrollOffsetBridge from './ScrollOffsetBridge.jsx'
-import ScrollOffsetBridgeCanvas from './ScrollOffsetBridgeCanvas.jsx'
 import ImagePlane from './ImagePlane.jsx'
 // -----------------------------------------------
 
@@ -98,47 +104,12 @@ function computeScaleForWidth (width) {
   if (width <= 768) return 0.85
   return 1
 }
-
-/* ---------------- useLenisScroll (CAN BE USED INSIDE OR OUTSIDE CANVAS) ----------------
-   Relies on App.jsx Lenis instance setting window._springScrollOffset.
-*/
-function useLenisScroll () {
-  const [offset, setOffset] = useState(
-    typeof window !== 'undefined' && typeof window._springScrollOffset === 'number'
-      ? window._springScrollOffset
-      : 0
-  )
-
-  useEffect(() => {
-    let mounted = true
-    let rafId = null
-    function loop () {
-      if (!mounted) return
-      const v = (typeof window !== 'undefined' && typeof window._springScrollOffset === 'number')
-        ? window._springScrollOffset : 0
-      setOffset(v)
-      rafId = requestAnimationFrame(loop)
-    }
-    rafId = requestAnimationFrame(loop)
-    return () => {
-      mounted = false
-      if (rafId) cancelAnimationFrame(rafId)
-    }
-  }, [])
-
-  return { offset }
-}
-
-/* ---------------- small helpers used in Scene ---------------- */
 function useResponsiveSetup ({ wrapperRef, cameraRef }) {
-  // this hook is used from inside Scene (Canvas), so we CAN use useThree
   const { size } = useThree()
   useEffect(() => {
     if (!wrapperRef || !wrapperRef.current) return
     const s = computeScaleForWidth(size.width)
-    try {
-      wrapperRef.current.scale.set(s, s, s)
-    } catch (e) {}
+    wrapperRef.current.scale.set(s, s, s)
     if (cameraRef && cameraRef.current) {
       const cam = cameraRef.current
       const baseFov = 35
@@ -148,7 +119,7 @@ function useResponsiveSetup ({ wrapperRef, cameraRef }) {
       else if (size.width <= 768) targetFov = 38
       else targetFov = baseFov
       cam.fov = targetFov
-      if (typeof cam.updateProjectionMatrix === 'function') cam.updateProjectionMatrix()
+      cam.updateProjectionMatrix()
       try {
         const origPos = cam.position.clone()
         const radial = new THREE.Vector3(origPos.x, 0, origPos.z)
@@ -165,6 +136,187 @@ function useResponsiveSetup ({ wrapperRef, cameraRef }) {
   }, [size.width, wrapperRef, cameraRef])
 }
 
+/* ---------------- camera blend helper ---------------- */
+function smoothBlendCamera (
+  cameraRef,
+  targetPos,
+  targetQuat,
+  duration = BLEND_MS
+) {
+  if (!cameraRef?.current) return () => {}
+  const startPos = cameraRef.current.position.clone()
+  const startQuat = cameraRef.current.quaternion.clone()
+  const startTime = performance.now()
+  let cancelled = false
+  function step () {
+    if (cancelled || !cameraRef.current) return
+    const now = performance.now()
+    const t = Math.min(1, (now - startTime) / duration)
+    cameraRef.current.position.lerpVectors(startPos, targetPos, t)
+    cameraRef.current.quaternion.slerpQuaternions(startQuat, targetQuat, t)
+    if (t < 1) requestAnimationFrame(step)
+  }
+  requestAnimationFrame(step)
+  return () => {
+    cancelled = true
+  }
+}
+
+/* ---------------- Leva monitor (small) ---------------- */
+function CameraDebugGUI ({ cameraRef, isOverriding }) {
+  useControls(
+    'Camera Debug',
+    {
+      OverrideActive: monitor(() => (isOverriding ? 'YES' : 'no'), {
+        interval: 250
+      }),
+      PositionXYZ: monitor(
+        () => {
+          const c = cameraRef.current
+          if (!c) return '—'
+          const p = c.position
+          return `${p.x.toFixed(3)}, ${p.y.toFixed(3)}, ${p.z.toFixed(3)}`
+        },
+        { interval: 250 }
+      ),
+      RotationEulerDeg_YXZ: monitor(
+        () => {
+          const c = cameraRef.current
+          if (!c) return '—'
+          const e = new THREE.Euler().setFromQuaternion(c.quaternion, 'YXZ')
+          return `${THREE.MathUtils.radToDeg(e.x).toFixed(
+            1
+          )}, ${THREE.MathUtils.radToDeg(e.y).toFixed(
+            1
+          )}, ${THREE.MathUtils.radToDeg(e.z).toFixed(1)}`
+        },
+        { interval: 250 }
+      ),
+      Quaternion: monitor(
+        () => {
+          const c = cameraRef.current
+          if (!c) return '—'
+          const q = c.quaternion
+          return `${q.x.toFixed(4)}, ${q.y.toFixed(4)}, ${q.z.toFixed(
+            4
+          )}, ${q.w.toFixed(4)}`
+        },
+        { interval: 250 }
+      )
+    },
+    { collapsed: false }
+  )
+  return null
+}
+
+/* ---------------- Small DOM overlay to copy values ---------------- */
+function CameraCopyOverlay ({ cameraRef }) {
+  const [pos, setPos] = useState('—')
+  const [eulerYXZ, setEulerYXZ] = useState('—')
+  const [quat, setQuat] = useState('—')
+
+  useEffect(() => {
+    let mounted = true
+    const id = setInterval(() => {
+      if (!mounted) return
+      const c = cameraRef.current
+      if (!c) {
+        setPos('—')
+        setEulerYXZ('—')
+        setQuat('—')
+        return
+      }
+      const p = c.position
+      setPos(`${p.x.toFixed(3)}, ${p.y.toFixed(3)}, ${p.z.toFixed(3)}`)
+      const e = new THREE.Euler().setFromQuaternion(c.quaternion, 'YXZ')
+      setEulerYXZ(
+        `${THREE.MathUtils.radToDeg(e.x).toFixed(
+          3
+        )}, ${THREE.MathUtils.radToDeg(e.y).toFixed(
+          3
+        )}, ${THREE.MathUtils.radToDeg(e.z).toFixed(3)}`
+      )
+      const q = c.quaternion
+      setQuat(
+        `${q.x.toFixed(6)}, ${q.y.toFixed(6)}, ${q.z.toFixed(6)}, ${q.w.toFixed(
+          6
+        )}`
+      )
+    }, 120)
+    return () => {
+      mounted = false
+      clearInterval(id)
+    }
+  }, [cameraRef])
+
+  const copyToClipboard = text => {
+    try {
+      navigator.clipboard.writeText(text)
+    } catch (e) {
+      const ta = document.createElement('textarea')
+      ta.value = text
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      ta.remove()
+    }
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        right: 18,
+        bottom: 18,
+        zIndex: 9999,
+        background: 'rgba(10,10,12,0.75)',
+        color: '#eee',
+        padding: '10px 12px',
+        borderRadius: 8,
+        fontFamily: 'monospace',
+        fontSize: 12,
+        maxWidth: 400,
+        display: 'none'
+      }}
+    >
+      <div style={{ marginBottom: 6, fontWeight: 600 }}>
+        Camera (copy for Theatre)
+      </div>
+      <div style={{ marginBottom: 6 }}>
+        <div style={{ color: '#9aaaaa' }}>Position (XYZ)</div>
+        <div>{pos}</div>
+        <button style={{ marginTop: 6 }} onClick={() => copyToClipboard(pos)}>
+          Copy Position
+        </button>
+      </div>
+
+      <div style={{ marginTop: 8 }}>
+        <div style={{ color: '#9aa' }}>Rotation (Euler YXZ in degrees)</div>
+        <div>{eulerYXZ}</div>
+        <button
+          style={{ marginTop: 6 }}
+          onClick={() => copyToClipboard(eulerYXZ)}
+        >
+          Copy Euler (YXZ)
+        </button>
+      </div>
+
+      <div style={{ marginTop: 8 }}>
+        <div style={{ color: '#9aa' }}>Quaternion (x, y, z, w)</div>
+        <div style={{ wordBreak: 'break-all' }}>{quat}</div>
+        <button style={{ marginTop: 6 }} onClick={() => copyToClipboard(quat)}>
+          Copy Quaternion
+        </button>
+      </div>
+
+      <div style={{ marginTop: 8, fontSize: 11, color: '#888' }}>
+        Tip: paste quaternion into Theatre if possible — it preserves rotation
+        exactly.
+      </div>
+    </div>
+  )
+}
+
 /* ---------------- Controlled fade overlay (reads controller) ---------------- */
 function ControlledFadeOverlay ({
   color = '#050417',
@@ -179,18 +331,24 @@ function ControlledFadeOverlay ({
     function checkController () {
       const ctrl = window._springFadeController
       if (!ctrl) return
+      // Only respond if controller has a valid sessionId
       if (!ctrl.sessionId) return
 
+      // ENTER: only once per controller.session
       if (ctrl.enter && !ctrl.entered) {
         ctrl.entered = true
         ctrl.exited = false
         window._springFadeController = ctrl
         setMode('entered')
+        // hold period before allowing automatic exit to start (so quick toggles don't retrigger)
         if (holdMs > 0) {
           clearTimeout(holdTimer)
-          holdTimer = setTimeout(() => {}, holdMs)
+          holdTimer = setTimeout(() => {
+            // after hold, we remain in 'entered' until ctrl.exit flips
+          }, holdMs)
         }
       }
+      // EXIT: trigger fade out once
       if (ctrl.exit && !ctrl.exited) {
         ctrl.exited = true
         window._springFadeController = ctrl
@@ -223,6 +381,7 @@ function ControlledFadeOverlay ({
   if (mode === 'entered') {
     return <div style={{ ...base, opacity: 1 }} />
   }
+  // exiting: fade out
   return (
     <div
       style={{
@@ -243,13 +402,14 @@ function ControlledFadeOverlay ({
 /* ---------------- Main component ---------------- */
 export default function ScrollSection () {
   const project = getProject('myProject', { state: theatreeBBState })
+
   window.__THEATRE_PROJECT__ = project
 
   const sheet = project.sheet('Scene')
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
   const pages = isMobile ? 19 : PAGES
 
-  // --- GUI
+  // --- LEVA: keep all existing GUI controls intact; add Fade group (color + timings + cooldown)
   const { fadeColor, forcedBlendMs, fadeExitMs, fadeHoldMs, fadeCooldownMs } =
     useControls('Fade', {
       fadeColor: { value: '#f2cdc4' },
@@ -269,24 +429,7 @@ export default function ScrollSection () {
       }
     })
 
-  const { overrideStartSec, overrideEndSec, snapDurationSec } = useControls('Fade Timing', {
-    overrideStartSec: { value: 20, min: 0, max: 300, step: 1 },
-    overrideEndSec: { value: 150, min: 1, max: 600, step: 1 },
-    snapDurationSec: { value: 2, min: 0.1, max: 10, step: 0.1 }
-  })
-
-  // push into fade defaults (so Scene reads)
-  useEffect(() => {
-    window._springFadeDefaults = {
-      ...(window._springFadeDefaults || {}),
-      overrideStartSec,
-      overrideEndSec,
-      snapDurationSec
-    }
-  }, [overrideStartSec, overrideEndSec, snapDurationSec])
-
-
-
+  // NEW: Fade toggles for up/down enter/exit
   const { upEnterEnabled, upExitEnabled, downEnterEnabled, downExitEnabled } =
     useControls('Fade Toggles', {
       upEnterEnabled: { label: 'Up-scroll: ENTER enabled', value: true },
@@ -295,14 +438,27 @@ export default function ScrollSection () {
       downExitEnabled: { label: 'Down-scroll: EXIT enabled', value: true }
     })
 
-  // publish defaults for overlays/bridges
+  // Override window controls (user requested)
+  const {
+    overrideStartSec,
+    overrideEndSec,
+    snapDurationSec,
+    forceImmediateExitOnEnd
+  } = useControls('Override Window', {
+    overrideStartSec: { value: 30, min: 0, max: 3600, step: 1, label: 'Override START (s)' },
+    overrideEndSec: { value: 130, min: 1, max: 3600, step: 1, label: 'Override END (s)' },
+    snapDurationSec: { value: 1, min: 0, max: 30, step: 0.1, label: 'Snap duration (s)' },
+    forceImmediateExitOnEnd: { value: true, label: 'Force immediate EXIT at end (skip stability)' }
+  })
+
+  // make these available to the Scene/bridge via global defaults
   useEffect(() => {
     window._springFadeDefaults = {
-      forcedBlendMs,
-      fadeExitMs,
-      fadeHoldMs,
-      fadeCooldownMs,
-      fadeColor,
+      forcedBlendMs: forcedBlendMs,
+      fadeExitMs: fadeExitMs,
+      fadeHoldMs: fadeHoldMs,
+      fadeCooldownMs: fadeCooldownMs,
+      fadeColor: fadeColor,
       upEnterEnabled,
       upExitEnabled,
       downEnterEnabled,
@@ -320,100 +476,105 @@ export default function ScrollSection () {
     downExitEnabled
   ])
 
-  // ensure page has scrollable height for Lenis (in case CSS locked it)
-  useEffect(() => {
-    // keep previous values to restore on unmount
-    const prevHtmlOverflow = document.documentElement.style.overflow
-    const prevBodyOverflow = document.body.style.overflow
-    document.documentElement.style.overflow = 'auto'
-    document.body.style.overflow = 'auto'
-    document.documentElement.style.height = 'auto'
-    document.body.style.height = 'auto'
-
-    const id = 'page-spacer'
-    let el = document.getElementById(id)
-    if (!el) {
-      el = document.createElement('div')
-      el.id = id
-      el.style.position = 'relative'
-      el.style.width = '1px'
-      el.style.height = `${pages * 100}vh`
-      el.style.pointerEvents = 'none'
-      el.style.opacity = '0'
-      document.body.appendChild(el)
-    } else {
-      el.style.height = `${pages * 100}vh`
-    }
-
-    setTimeout(() => {}, 50)
-
-    return () => {
-      const el2 = document.getElementById(id)
-      if (el2 && el2.parentNode) el2.parentNode.removeChild(el2)
-      document.documentElement.style.overflow = prevHtmlOverflow
-      document.body.style.overflow = prevBodyOverflow
-    }
-  }, [pages])
-
   return (
-    <>
-      <Leva hidden={isMobile} collapsed={false} />
+    <div style={{ height: '100vh', overflow: 'hidden' }}>
+      <Leva hidden={isMobile} />
 
-      {/* Hook-free bridge that publishes viewport/scroll globals */}
-      <ScrollOffsetBridge />
+      <Canvas
+        gl={{
+          alpha: true,
+          premultipliedAlpha: true,
+          outputColorSpace: THREE.SRGBColorSpace,
+          toneMapping: THREE.NoToneMapping
+        }}
+        shadows
+        onCreated={({ gl }) => {
+          gl.toneMapping = THREE.ACESFilmicToneMapping
+          gl.toneMappingExposure = 1.0
+          gl.outputColorSpace = THREE.SRGBColorSpace
+        }}
+        style={{ width: '100vw', height: '100vh' }}
+      >
+        <Suspense fallback={null}>
+          <WaterScene />
+          <UnderwaterFog
+            waterY={0}
+            surfaceColor='#E8C5D2'
+            surfaceDensity={0.00042}
+            underColor='#7E66A4'
+            underDensity={0.0014}
+            blendMeters={9}
+          />
+        </Suspense>
 
-      {/* Canvas full screen */}
-      <div style={{ position: 'fixed', left: 0, top: 0, width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: 1 }}>
-        <Canvas
-          gl={{
-            alpha: true,
-            premultipliedAlpha: true,
-            outputColorSpace: THREE.SRGBColorSpace,
-            toneMapping: THREE.NoToneMapping
-          }}
-          shadows
-          onCreated={({ gl }) => {
-            gl.toneMapping = THREE.ACESFilmicToneMapping
-            gl.toneMappingExposure = 1.0
-            gl.outputColorSpace = THREE.SRGBColorSpace
-          }}
-          style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'none' }}
-        >
-          <Suspense fallback={null}>
-            <WaterScene />
-            <UnderwaterFog
-              waterY={0}
-              surfaceColor='#E8C5D2'
-              surfaceDensity={0.00042}
-              underColor='#7E66A4'
-              underDensity={0.0014}
-              blendMeters={9}
-            />
-          </Suspense>
-
-          {/* Canvas-local bridge */}
-          <ScrollOffsetBridgeCanvas />
-
-          {/* Theatre sheet provider */}
+        <ScrollOffsetBridge />
+        <ScrollControls pages={pages} distance={1} damping={0.35}>
           <SheetProvider sheet={sheet}>
-            <Scene sheet={sheet} guiFadeDefaults={window._springFadeDefaults || {}} />
+            <Scene
+              sheet={sheet}
+              guiFadeDefaults={{
+                forcedBlendMs,
+                fadeExitMs,
+                fadeHoldMs,
+                fadeCooldownMs,
+                fadeColor,
+                // pass toggles so Scene logic can read them immediately
+                upEnterEnabled,
+                upExitEnabled,
+                downEnterEnabled,
+                downExitEnabled,
+                overrideStartSec,
+                overrideEndSec,
+                snapDurationSec,
+                forceImmediateExitOnEnd
+              }}
+            />
+
+            <ScrollOffsetBridge />
           </SheetProvider>
-        </Canvas>
-      </div>
+          <Scroll html style={{ position: 'absolute', width: '100vw' }} />
+        </ScrollControls>
+      </Canvas>
 
-      {/* Spacer (fallback in markup) */}
-      <div aria-hidden style={{ height: `${pages * 100}vh`, width: 1, pointerEvents: 'none' }} />
+      {/* overlays */}
+      <CameraOverlayBridge />
+      <FadeOverlayBridge />
+    </div>
+  )
+}
 
-      {/* Fade overlay reads window._springFadeController */}
-      <ControlledFadeOverlay color={fadeColor} exitDuration={fadeExitMs} holdMs={fadeHoldMs} />
-    </>
+/* ---------------- Bridge components ---------------- */
+function CameraOverlayBridge () {
+  const [cameraRef, setCameraRef] = useState(null)
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (window._springCamRef && window._springCamRef.current)
+        setCameraRef(window._springCamRef)
+    }, 200)
+    return () => clearInterval(id)
+  }, [])
+  if (!cameraRef) return null
+  return <CameraCopyOverlay cameraRef={cameraRef} />
+}
+
+function FadeOverlayBridge () {
+  const defaults =
+    (typeof window !== 'undefined' && window._springFadeDefaults) || {}
+  const color = defaults.fadeColor || '#f2cdc4'
+  const exitDuration = defaults.fadeExitMs || DEFAULT_FADE_EXIT_MS
+  const holdMs = defaults.fadeHoldMs || DEFAULT_FADE_HOLD_MS
+  return (
+    <ControlledFadeOverlay
+      color={color}
+      exitDuration={exitDuration}
+      holdMs={holdMs}
+    />
   )
 }
 
 /* ---------------- Scene (inside Canvas) ---------------- */
 function Scene ({ sheet, guiFadeDefaults = {} }) {
-  // replace useScroll (drei) with lenis-backed hook
-  const scroll = useLenisScroll()
+  const scroll = useScroll()
   const { set } = useThree()
 
   const cameraRef = useRef()
@@ -425,14 +586,13 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
   useEffect(() => {
     window._springCamRef = cameraRef
   }, [cameraRef])
-
+  // Scene component-এর ভিতরে:
   useEffect(() => {
     window._springSheetRef = sheet
   }, [sheet])
 
   useResponsiveSetup({ wrapperRef, cameraRef })
 
-  // GUI-controlled params (kept as in original)
   const {
     turns,
     coilRadius,
@@ -476,7 +636,6 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
     scrollResponsiveness,
     startupBias,
     maxStep,
-    scrollSpeedMultiplier,
 
     riseSmoothing,
 
@@ -532,7 +691,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
     scrollResponsiveness: { value: 0.45, min: 0.01, max: 1.5, step: 0.01 },
     startupBias: { value: 0.9, min: 0, max: 1.0, step: 0.01 },
     maxStep: { value: 0.12, min: 0.001, max: 1.0, step: 0.001 },
-    scrollSpeedMultiplier: { value: 1.0, min: 0.01, max: 1.0, step: 0.01 },
+scrollSpeedMultiplier: { value: 1.0, min: 0.01, max: 1.0, step: 0.01, label: 'Scroll Speed Multiplier' },
 
     riseSmoothing: { value: 0.6, min: 0.01, max: 1.0, step: 0.01 },
 
@@ -584,6 +743,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
     sessionDir: 'down' // 'down' | 'up'
   })
 
+  // snap ref (keeps camera frozen for snapDurationSec at end)
   const snapRef = useRef({
     active: false,
     start: 0,
@@ -593,47 +753,40 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
     sessionId: null
   })
 
+  // soft pause ref: used to implement the 1s soft-start behavior
   const softPauseRef = useRef({ active: false, start: 0, duration: 1000 })
 
+  // stability detection
   const stableFramesRef = useRef(0)
   const STABLE_REQUIRED = 3
   const POS_THRESHOLD = 0.12
   const ANGLE_THRESHOLD_DEG = 1.5
 
+  // fade trigger cooldown: avoid repeated quick toggles
   const lastFadeTriggerRef = useRef(0)
 
+  // helper to create unique session id
   function makeSessionId () {
     return `fade-${Date.now().toString(36)}-${Math.floor(
       Math.random() * 1e6
     ).toString(36)}`
   }
 
-  // map lenis offset -> theatre timeline (keeps theatre in sync)
+  // map scroll -> theatre timeline (keeps theatre in sync)
   useFrame(() => {
     if (!sheet || !scroll) return
-    // try to infer sequence length safely
-    try {
-      const seqPtr = sheet.sequence && sheet.sequence.pointer
-      const seqLen =
-        (seqPtr && typeof seqPtr.length === 'number' && seqPtr.length > 0)
-          ? seqPtr.length
-          : Number(val(sheet.sequence.pointer.length) || Number(sheet.sequence.duration) || 1)
-      const length = Math.max(1, seqLen || 1)
-      sheet.sequence.position = scroll.offset * length
-    } catch (e) {
-      // fallback set direct
-      try {
-        const rawLen = Number(sheet.sequence.duration || 1)
-        sheet.sequence.position = scroll.offset * Math.max(1, rawLen)
-      } catch (err) {}
-    }
+    const sequenceLength = Math.max(
+      1,
+      Number(val(sheet.sequence.pointer.length) || 1)
+    )
+    sheet.sequence.position = scroll.offset * sequenceLength
   })
 
-  // override detection & enter/exit handling — keep original logic but using lenis scroll
+  // detect override window (enter / exit) — REWRITTEN robustly and with snap-on-end
   useFrame(() => {
     if (!sheet) return
 
-    // compute seqPosSeconds robustly
+    // --- determine sequence time in seconds robustly ---
     let seqPosSeconds = 0
     try {
       const ptr = sheet.sequence && sheet.sequence.pointer
@@ -644,7 +797,8 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
         let fps = 60
         if (ptr) {
           if (typeof ptr.fps === 'number' && ptr.fps > 0) fps = ptr.fps
-          else if (typeof ptr.frameRate === 'number' && ptr.frameRate > 0) fps = ptr.frameRate
+          else if (typeof ptr.frameRate === 'number' && ptr.frameRate > 0)
+            fps = ptr.frameRate
         }
         const ptrLen = (ptr && typeof ptr.length === 'number') ? ptr.length : NaN
         if (isFinite(ptrLen) && ptrLen > 1000) {
@@ -658,10 +812,12 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
       seqPosSeconds = Number(sheet.sequence.position || 0)
     }
 
+    // read GUI override window (fallback to defaults)
     const AUTOSTART_SEC = typeof guiFadeDefaults.overrideStartSec === 'number' ? guiFadeDefaults.overrideStartSec : (window._springFadeDefaults?.overrideStartSec || 10)
     const AUTOEND_SEC = typeof guiFadeDefaults.overrideEndSec === 'number' ? guiFadeDefaults.overrideEndSec : (window._springFadeDefaults?.overrideEndSec || 150)
     const snapDurMs = ((typeof guiFadeDefaults.snapDurationSec === 'number' ? guiFadeDefaults.snapDurationSec : (window._springFadeDefaults?.snapDurationSec || 2)) * 1000)
 
+    // compute scroll direction using lastRawRef (previous frame) and current scroll.offset if available
     let currScrollOffset = null
     try {
       currScrollOffset = scroll ? THREE.MathUtils.clamp(scroll.offset, 0, 1) : null
@@ -672,21 +828,42 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
 
     const shouldOverrideNow = seqPosSeconds >= AUTOSTART_SEC && seqPosSeconds < AUTOEND_SEC
 
+    // When override state flips, run existing ENTER/EXIT logic
     if (shouldOverrideNow !== prevOverrideRef.current) {
-      const defaults = (typeof window !== 'undefined' && window._springFadeDefaults) || guiFadeDefaults || {}
+      const defaults =
+        (typeof window !== 'undefined' && window._springFadeDefaults) ||
+        guiFadeDefaults ||
+        {}
       const color = defaults.fadeColor || guiFadeDefaults.fadeColor || '#f2cdc4'
-      const forcedBlendMsVal = defaults.forcedBlendMs || guiFadeDefaults.forcedBlendMs || DEFAULT_FORCED_BLEND_MS
-      const fadeExitMsVal = defaults.fadeExitMs || guiFadeDefaults.fadeExitMs || DEFAULT_FADE_EXIT_MS
-      const fadeHoldMsVal = defaults.fadeHoldMs || guiFadeDefaults.fadeHoldMs || DEFAULT_FADE_HOLD_MS
-      const fadeCooldownMsVal = defaults.fadeCooldownMs || guiFadeDefaults.fadeCooldownMs || DEFAULT_FADE_COOLDOWN_MS
+      const forcedBlendMsVal =
+        defaults.forcedBlendMs ||
+        guiFadeDefaults.forcedBlendMs ||
+        DEFAULT_FORCED_BLEND_MS
+      const fadeExitMsVal =
+        defaults.fadeExitMs ||
+        guiFadeDefaults.fadeExitMs ||
+        DEFAULT_FADE_EXIT_MS
+      const fadeHoldMsVal =
+        defaults.fadeHoldMs ||
+        guiFadeDefaults.fadeHoldMs ||
+        DEFAULT_FADE_HOLD_MS
+      const fadeCooldownMsVal =
+        defaults.fadeCooldownMs ||
+        guiFadeDefaults.fadeCooldownMs ||
+        DEFAULT_FADE_COOLDOWN_MS
 
       const now = performance.now()
       const timeSinceLast = now - (lastFadeTriggerRef.current || 0)
-      const allowTrigger = timeSinceLast >= (fadeCooldownMsVal || DEFAULT_FADE_COOLDOWN_MS)
+      const allowTrigger =
+        timeSinceLast >= (fadeCooldownMsVal || DEFAULT_FADE_COOLDOWN_MS)
 
       if (shouldOverrideNow) {
-        try { sheet.sequence.pause() } catch (e) {}
+        // ENTER
+        try {
+          sheet.sequence.pause()
+        } catch (e) {}
 
+        // compute target brick and set forcedBlend
         try {
           const rawOffset = THREE.MathUtils.clamp(scroll.offset, 0, 1)
           const tParam = startAt === 'top' ? 1 - rawOffset : rawOffset
@@ -738,6 +915,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
             }
           }
 
+          // soft pause
           softPauseRef.current = {
             active: true,
             start: performance.now(),
@@ -747,12 +925,14 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
           console.warn('[FORCED BLEND] compute failed', e)
         }
 
+        // ensure camera used next frame
         requestAnimationFrame(() => {
           try {
             set({ camera: cameraRef.current })
           } catch (e) {}
         })
 
+        // trigger fade ENTER if allowed and toggles allow
         try {
           if (allowTrigger) {
             lastFadeTriggerRef.current = now
@@ -771,7 +951,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
                 entered: false,
                 exit: false,
                 exited: false,
-                color,
+                color: color,
                 forcedBlendMs: forcedBlendMsVal,
                 fadeExitMs: fadeExitMsVal,
                 fadeHoldMs: fadeHoldMsVal,
@@ -819,9 +999,14 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
           console.warn('[FADE ENTER] failed', e)
         }
       } else {
-        try { sheet.sequence.play() } catch (e) {}
+        // EXIT branch (regular)
+        try {
+          sheet.sequence.play()
+        } catch (e) {}
         if (blendCancelRef.current) blendCancelRef.current()
+
         softPauseRef.current = { active: false, start: 0, duration: 1000 }
+
         window._springFadeDefaults = {
           forcedBlendMs: forcedBlendMsVal,
           fadeExitMs: fadeExitMsVal,
@@ -838,33 +1023,88 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
       setIsOverriding(shouldOverrideNow)
     }
 
+    // --- If we are past AUTOEND_SEC, ensure immediate exit + create snap ---
     if (seqPosSeconds >= AUTOEND_SEC) {
       try {
-        if (!window._springSuppressTheatreResume) {
-          sheet.sequence.play()
+        const ctrl = window._springFadeController || null
+        const sessionDir = (ctrl && ctrl.sessionDir) || forcedBlendRef.current.sessionDir || (directionDown ? 'down' : 'up')
+        const exitAllowed =
+          (sessionDir === 'down' &&
+            (guiFadeDefaults.downExitEnabled ?? window._springFadeDefaults?.downExitEnabled ?? true)) ||
+          (sessionDir === 'up' &&
+            (guiFadeDefaults.upExitEnabled ?? window._springFadeDefaults?.upExitEnabled ?? true))
+
+        if (exitAllowed) {
+          if (ctrl && ctrl.sessionId && !ctrl.exit && !ctrl.exited) {
+            // mark exit immediately (skipping stability) - only if GUI allows
+            if (guiFadeDefaults.forceImmediateExitOnEnd ?? true) {
+              ctrl.exit = true
+              window._springFadeController = ctrl
+            } else {
+              // if not forcing, still set exit for safety
+              ctrl.exit = true
+              window._springFadeController = ctrl
+            }
+          } else if (!ctrl) {
+            // ensure we still set the defaults object so overlay remains consistent
+            window._springFadeDefaults = { ...(window._springFadeDefaults || {}) }
+          }
+
+          // capture snap if not already captured for this session
+          if (!snapRef.current.active && cameraRef.current) {
+            snapRef.current.active = true
+            snapRef.current.start = performance.now()
+            snapRef.current.duration = snapDurMs
+            snapRef.current.pos = cameraRef.current.position.clone()
+            snapRef.current.quat = cameraRef.current.quaternion.clone()
+            snapRef.current.sessionId = (window._springFadeController && window._springFadeController.sessionId) || makeSessionId()
+
+            // expose snap to global for theatre usage
+            window._springSnap = {
+              sessionId: snapRef.current.sessionId,
+              pos: { x: snapRef.current.pos.x, y: snapRef.current.pos.y, z: snapRef.current.pos.z },
+              quat: { x: snapRef.current.quat.x, y: snapRef.current.quat.y, z: snapRef.current.quat.z, w: snapRef.current.quat.w },
+              duration: snapRef.current.duration
+            }
+          }
         }
-      } catch (e) {}
+      } catch (e) {
+        // ignore
+      }
     }
 
+    // Update isOverriding state reliably
     setIsOverriding(prevOverrideRef.current)
     lastRawRef.current = (scroll ? THREE.MathUtils.clamp(scroll.offset, 0, 1) : lastRawRef.current)
   })
 
-  // main camera/bricks logic (keeps original behavior, using lenis-backed scroll)
+  // main camera/bricks logic (runs every frame)
   useFrame((state, delta) => {
     if (!scroll || !springGroupRef.current || !cameraRef.current) return
 
+    // If snap is active and within duration -> freeze camera at snap pose
     if (snapRef.current && snapRef.current.active) {
       const now = performance.now()
       const elapsed = now - snapRef.current.start
       if (elapsed <= (snapRef.current.duration || 0)) {
+        // keep camera at snap transform
         cameraRef.current.position.copy(snapRef.current.pos)
         cameraRef.current.quaternion.copy(snapRef.current.quat)
         cameraRef.current.updateMatrixWorld()
+        // Do not run the rest of override movement while snap is active
         return
       } else {
+        // snap ended
         snapRef.current.active = false
-        try { if (sheet && sheet.sequence) sheet.sequence.play() } catch (e) {}
+        // mark snap as consumed (theatre can resume based on window._springSnap if needed)
+        // optionally play sheet again
+        try {
+          const ctrl = window._springFadeController || null
+          if (ctrl && ctrl.exit) {
+            // keep existing exit handling; after snap we also ensure theatre plays
+            try { sheet.sequence.play() } catch (e) {}
+          }
+        } catch (e) {}
       }
     }
 
@@ -887,6 +1127,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
       1 - Math.min(1, (absDiff * startupBias) / Math.max(1, count * 0.25))
     let lerpFactor = baseLerp * (0.2 + 0.8 * scale)
 
+    // scroll speed multiplier support
     const speedMult = Math.max(0.001, (typeof scrollSpeedMultiplier !== 'undefined' ? scrollSpeedMultiplier : 1.0))
     const maxStepEffective = Math.max(0.001, maxStep) * (delta * 60) * speedMult
 
@@ -972,12 +1213,6 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
       camQuatFromBasis,
       'YXZ'
     )
-
-    const progress = typeof t === 'number' ? THREE.MathUtils.clamp(t, 0, 1) : 0
-
-    const extraPitchDeg = 5 * progress
-    camEuler.x += THREE.MathUtils.degToRad(extraPitchDeg)
-
     if (mode === 'oppositeSide' || mode === 'oppositeSideMove')
       camEuler.y += Math.PI
     camEuler.y += THREE.MathUtils.degToRad(yOffsetDeg)
@@ -1004,6 +1239,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
       camDesiredWorld.copy(brickWorldPos).add(dir.multiplyScalar(minDist))
     }
 
+    // compute soft-pause factor (0..1)
     let pauseFactor = 1.0
     if (softPauseRef.current && softPauseRef.current.active) {
       const now = performance.now()
@@ -1020,6 +1256,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
       }
     }
 
+    // forced blend override (if active) — note: snap takes precedence earlier
     if (forcedBlendRef.current.active && cameraRef.current) {
       const now = performance.now()
       const fb = forcedBlendRef.current
@@ -1032,8 +1269,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
 
       if (u >= 1) {
         forcedBlendRef.current.active = false
-        window._springSuppressTheatreResume = true
-
+        // when forcedBlend finished, if controller session exists and matches, set exit true
         const ctrl = window._springFadeController || null
         if (ctrl && ctrl.sessionId && fb.sessionId && ctrl.sessionId === fb.sessionId) {
           const sessionDir = fb.sessionDir || ctrl.sessionDir || 'down'
@@ -1052,16 +1288,10 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
             window._springFadeController = ctrl
           }
         }
-
-        try {
-          if (sheet && sheet.sequence) {
-            try { sheet.sequence.play() } catch (e) { console.warn('[Spring] forcedBlend->play failed', e) }
-          }
-        } catch (e) {}
       }
     } else {
       if (isOverriding && cameraRef.current) {
-        const desiredDelta = camDesiredWorld.clone().Sub ? camDesiredWorld.clone().sub(cameraRef.current.position) : camDesiredWorld.clone().sub(cameraRef.current.position)
+        const desiredDelta = camDesiredWorld.clone().sub(cameraRef.current.position)
         const maxMove = Math.max(
           0.0001,
           minDist * (state.clock.delta * 60) * (maxMovePerFrameFactor || 1)
@@ -1089,6 +1319,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
         cameraRef.current.quaternion.slerp(camFinalQuat, rotSmooth)
         cameraRef.current.updateMatrixWorld()
 
+        // stability fallback
         const posDist = cameraRef.current.position.distanceTo(camDesiredWorld)
         const q1 = cameraRef.current.quaternion
         const q2 = camFinalQuat
@@ -1121,7 +1352,6 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
               if (exitAllowed) {
                 ctrl.exit = true
                 window._springFadeController = ctrl
-                try { if (sheet && sheet.sequence) sheet.sequence.play() } catch (e) { console.warn('[Spring] stability->play failed', e) }
               } else {
                 window._springFadeController = ctrl
               }
@@ -1139,7 +1369,7 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
     }
   })
 
-  return (
+ return (
     <>
       {isOverriding ? (
         <perspectiveCamera
@@ -1210,11 +1440,9 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
             roughness={0.4}
           />
         </mesh>
-
         <e.group theatreKey='RockStone' position={[0, 0, -1]}>
           <RockStone scale={30} />
         </e.group>
-
         <hemisphereLight
           args={['#cfe7ff', '#6b4f5f', 0.35]}
           castShadow={false}
@@ -1266,7 +1494,6 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
         <e.group theatreKey='L3stone' position={[0, 0, -1]}>
           <L3stone scale={50} />
         </e.group>
-
         <e.group theatreKey='R1stone' position={[0, 0, -1]}>
           <R1stone scale={50} />
         </e.group>
@@ -1285,7 +1512,6 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
         <e.group theatreKey='Fish' position={[0, 0, 1]}>
           <Fish scale={100} />
         </e.group>
-
         <e.group theatreKey='Seashell' position={[0, 0, 1]}>
           <Seashell scale={20} />
         </e.group>
@@ -1407,10 +1633,10 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
           <Product scale={30} />
         </e.group>
 
-        {/* <e.group theatreKey='TextBoxUnderWater-1' position={[0, 0, 1]}>
+        <e.group theatreKey='TextBoxUnderWater-1' position={[0, 0, 1]}>
           <TextBoxUnderWater
-            startAt={140}
-            duration={6}
+            startAt={140} // এই কম্পোনেন্ট 30s এ শুরু করবে
+            duration={6} // 4 seconds-এর স্ক্রল পজিশনে পুরো growth হবে (0->1)
             scrollTimelineLength={145}
             title='Skin Health'
             bullets={[
@@ -1421,7 +1647,23 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
             position={[0, 0.8, 0]}
             scale={15}
           />
-        </e.group> */}
+        </e.group>
+
+        <e.group theatreKey='TextBoxUnderWater-2' position={[0, 0, 1]}>
+          <TextBoxUnderWater
+            startAt={140} // এই কম্পোনেন্ট 30s এ শুরু করবে
+            duration={6} // 4 seconds-এর স্ক্রল পজিশনে পুরো growth হবে (0->1)
+            scrollTimelineLength={145}
+            title='Skin Health'
+            bullets={[
+              'Anti-aging, collagen production, reduces acne, hydrates skin and decreases excessive sebum oil in the skin.',
+              'Helps with severe skin conditions like eczema and psoriasis.'
+            ]}
+            bubbleSrc='/textures/bubble1.png'
+            position={[0, 0.8, 0]}
+            scale={15}
+          />
+        </e.group>
 
         <UnderwaterSleeve />
         <e.mesh
@@ -1440,162 +1682,8 @@ function Scene ({ sheet, guiFadeDefaults = {} }) {
           <UnderWaterMountainSide scale={20} />
         </e.group>
 
-        <UnderwaterFog position={[0, -1, 0]} />
+        <UnderwaterFog  position={[0, -1, 0]}/>
       </group>
     </>
-  )
-}
-
-/* ---------------- Camera debug and copy overlay components ---------------- */
-function CameraDebugGUI ({ cameraRef, isOverriding }) {
-  useControls(
-    'Camera Debug',
-    {
-      OverrideActive: monitor(() => (isOverriding ? 'YES' : 'no'), {
-        interval: 250
-      }),
-      PositionXYZ: monitor(
-        () => {
-          const c = cameraRef.current
-          if (!c) return '—'
-          const p = c.position
-          return `${p.x.toFixed(3)}, ${p.y.toFixed(3)}, ${p.z.toFixed(3)}`
-        },
-        { interval: 250 }
-      ),
-      RotationEulerDeg_YXZ: monitor(
-        () => {
-          const c = cameraRef.current
-          if (!c) return '—'
-          const e = new THREE.Euler().setFromQuaternion(c.quaternion, 'YXZ')
-          return `${THREE.MathUtils.radToDeg(e.x).toFixed(
-            1
-          )}, ${THREE.MathUtils.radToDeg(e.y).toFixed(
-            1
-          )}, ${THREE.MathUtils.radToDeg(e.z).toFixed(1)}`
-        },
-        { interval: 250 }
-      ),
-      Quaternion: monitor(
-        () => {
-          const c = cameraRef.current
-          if (!c) return '—'
-          const q = c.quaternion
-          return `${q.x.toFixed(4)}, ${q.y.toFixed(4)}, ${q.z.toFixed(
-            4
-          )}, ${q.w.toFixed(4)}`
-        },
-        { interval: 250 }
-      )
-    },
-    { collapsed: false }
-  )
-  return null
-}
-
-function CameraCopyOverlay ({ cameraRef }) {
-  const [pos, setPos] = useState('—')
-  const [eulerYXZ, setEulerYXZ] = useState('—')
-  const [quat, setQuat] = useState('—')
-
-  useEffect(() => {
-    let mounted = true
-    const id = setInterval(() => {
-      if (!mounted) return
-      const c = cameraRef.current
-      if (!c) {
-        setPos('—')
-        setEulerYXZ('—')
-        setQuat('—')
-        return
-      }
-      const p = c.position
-      setPos(`${p.x.toFixed(3)}, ${p.y.toFixed(3)}, ${p.z.toFixed(3)}`)
-      const e = new THREE.Euler().setFromQuaternion(c.quaternion, 'YXZ')
-      setEulerYXZ(
-        `${THREE.MathUtils.radToDeg(e.x).toFixed(
-          3
-        )}, ${THREE.MathUtils.radToDeg(e.y).toFixed(
-          3
-        )}, ${THREE.MathUtils.radToDeg(e.z).toFixed(3)}`
-      )
-      const q = c.quaternion
-      setQuat(
-        `${q.x.toFixed(6)}, ${q.y.toFixed(6)}, ${q.z.toFixed(6)}, ${q.w.toFixed(
-          6
-        )}`
-      )
-    }, 120)
-    return () => {
-      mounted = false
-      clearInterval(id)
-    }
-  }, [cameraRef])
-
-  const copyToClipboard = text => {
-    try {
-      navigator.clipboard.writeText(text)
-    } catch (e) {
-      const ta = document.createElement('textarea')
-      ta.value = text
-      document.body.appendChild(ta)
-      ta.select()
-      document.execCommand('copy')
-      ta.remove()
-    }
-  }
-
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        right: 18,
-        bottom: 18,
-        zIndex: 9999,
-        background: 'rgba(10,10,12,0.75)',
-        color: '#eee',
-        padding: '10px 12px',
-        borderRadius: 8,
-        fontFamily: 'monospace',
-        fontSize: 12,
-        maxWidth: 400,
-        display: 'none'
-      }}
-    >
-      <div style={{ marginBottom: 6, fontWeight: 600 }}>
-        Camera (copy for Theatre)
-      </div>
-      <div style={{ marginBottom: 6 }}>
-        <div style={{ color: '#9aaaaa' }}>Position (XYZ)</div>
-        <div>{pos}</div>
-        <button style={{ marginTop: 6 }} onClick={() => copyToClipboard(pos)}>
-          Copy Position
-        </button>
-      </div>
-
-      <div style={{ marginTop: 8 }}>
-        <div style={{ color: '#9aa' }}>Rotation (Euler YXZ in degrees)</div>
-        <div>{eulerYXZ}</div>
-        <button
-          style={{ marginTop: 6 }}
-          onClick={() => copyToClipboard(eulerYXZ)}
-        >
-          Copy Euler (YXZ)
-        </button>
-      </div>
-
-      <div style={{ marginTop: 8 }}>
-        <div style={{ color: '#9aa' }}>Quaternion (x, y, z, w)</div>
-        <div style={{ wordBreak: 'break-all' }}>{quat}</div>
-        <button style={{ marginTop: 6 }} onClick={() => copyToClipboard(quat)}>
-          Copy Quaternion
-        </button>
-      </div>
-
-      <div style={{ marginTop: 8, fontSize: 11, color: '#888' }}>
-        Tip: paste quaternion into Theatre if possible — it preserves rotation
-        exactly.
-      </div>
-    </div>
   )
 }

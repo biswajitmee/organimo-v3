@@ -10,9 +10,9 @@ export default function UnderwaterFog({
   surfaceDensity = 0.00032,
   // underwater target
   underColor = '#4D2E69',      // purple-blue
-  underDensity = 0.0014,        // stronger fog under water
+  underDensity = 0.0025,        // stronger fog under water
   // how soft the transition is around the surface
-  blendMeters = 6               // meters over which to blend
+  blendMeters = 2               // meters over which to blend
 }) {
   const { scene, camera } = useThree()
 

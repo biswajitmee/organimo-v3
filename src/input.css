@@ -47,6 +47,69 @@
     background-image: url("/assets/section3.png");
   }
 
+
+
+
+
+/* src/index.css */
+/* basic styles required for ScrollSmoother setup */
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  background: #000;
+  color: #fff;
+}
+
+#smooth-wrapper {
+  position: relative;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden; /* required by ScrollSmoother */
+}
+
+#smooth-content {
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* ensure the fixed overlay stays above everything */
+.z-40 {
+  z-index: 40;
+}
+ 
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* smoother নিজেই scroll হ্যান্ডেল করবে */
+  background: #000;
+  color: #fff;
+}
+
+#smooth-wrapper {
+  position: relative;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}
+
+#smooth-content {
+  min-height: 100vh;
+  width: 100%;
+}
+
+
+
+
+
+
+
   /* Responsive fixes */
   @media (max-width: 768px) {
     .section-0 .headline,
